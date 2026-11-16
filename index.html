@@ -115,26 +115,26 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
 <body>
 <div class="app">
   <div class="stage-bar">
-  <div class="stage" id="stage" aria-label="커버 미리보기. 끌어서 사진 위치를 옮깁니다">
+  <div class="stage" id="stage" aria-label="커버 미리보기. 끌어서 사진 위치를 옮겨요">
     <canvas id="out" width="1080" height="1920"></canvas>
     <canvas id="guide" width="1080" height="1920"></canvas>
-    <div class="empty" id="empty">아래 1번에서 영상이나 사진을 여세요</div>
-    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오는 중</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>그냥 내가 고를래</button></div>
-    <div class="seeking" id="seeking" hidden><img class="logo-spin" src="logos/hong.png" alt="">장면 찾는 중</div>
+    <div class="empty" id="empty">아래 1번에서 영상이나 사진을 열어 주세요</div>
+    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오고 있어요</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>그냥 제가 고를게요</button></div>
+    <div class="seeking" id="seeking" hidden><img class="logo-spin" src="logos/hong.png" alt="">장면 찾고 있어요</div>
   </div>
   </div>
 
   <div class="panel">
     <div>
       <h1>홍비디오 커버 만들기</h1>
-      <p class="intro">영상에서 장면을 고르고 두 줄을 적으면 홍비디오 릴스 커버(1080×1920)가 나옵니다. 위치·글꼴·로고는 정해진 틀로 자동으로 맞춰집니다.</p>
+      <p class="intro">영상에서 장면을 고르고 두 줄을 적으면 홍비디오 릴스 커버(1080×1920)가 나와요. 위치·글꼴·로고는 정해진 틀로 자동으로 맞춰져요.</p>
     </div>
 
     <section class="step">
       <h2><span class="n">1</span>영상 또는 사진 열기</h2>
       <div class="row">
         <label class="file">영상·사진 열기<input type="file" id="vfile"></label>
-        <span class="hint" id="srcname">갠콘 폴더의 자막 없는(자막 X) 영상을 여세요. 확장자 없는 파일도 됩니다</span>
+        <span class="hint" id="srcname">갠콘 폴더의 자막 없는(자막 X) 영상을 열어 주세요. 확장자 없는 파일도 돼요</span>
       </div>
     </section>
 
@@ -147,11 +147,11 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <div class="row">
         <button id="back" disabled>◀ 한 프레임</button>
         <button id="fwd" disabled>한 프레임 ▶</button>
-        <span class="hint pc-only">키보드 <kbd>←</kbd> <kbd>→</kbd>도 됩니다</span>
+        <span class="hint pc-only">키보드 <kbd>←</kbd> <kbd>→</kbd>도 돼요</span>
       </div>
-      <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋습니다. 화면에 자막·스티커가 있는 장면은 피하세요.</p>
+      <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋아요. 화면에 자막·스티커가 있는 장면은 피해 주세요.</p>
       <div class="recs" id="recs" hidden>
-        <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">커버 각 나오는 컷 찾는 중</span></div>
+        <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">커버 각 나오는 컷 찾고 있어요</span></div>
         <div class="rec-list" id="recList"></div>
       </div>
     </section>
@@ -160,16 +160,16 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <h2><span class="n">3</span>커버 문구 두 줄</h2>
       <div class="line-in"><label for="l1">윗줄</label><input id="l1" maxlength="12" autocomplete="off"><span class="count" id="c1">0/7</span></div>
       <div class="line-in"><label for="l2">아랫줄</label><input id="l2" maxlength="12" autocomplete="off"><span class="count" id="c2">0/7</span></div>
-      <p class="hint">장면의 한마디. 한 줄 3~7자, 아랫줄이 펀치라인이 되게 나눕니다. 문장부호·이모지·학교명은 쓰지 않습니다. 예시를 누르면 채워집니다.</p>
+      <p class="hint">장면의 한마디. 한 줄 3~7자, 아랫줄이 펀치라인이 되게 나눠요. 문장부호·이모지·학교명은 쓰지 않아요. 예시를 누르면 채워져요.</p>
       <div class="chips" id="examples"></div>
     </section>
 
     <section class="step">
       <h2><span class="n">4</span>사진 위치</h2>
       <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:70px">45% 기본</span></div>
-      <p class="hint" style="margin-top:-4px">아래쪽 그라데이션 진하기입니다. 밝은 장면에서 글자가 안 읽히면 올리세요.</p>
+      <p class="hint" style="margin-top:-4px">아래쪽 그라데이션 진하기예요. 밝은 장면에서 글자가 안 읽히면 올려 주세요.</p>
       <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
-      <p class="hint">미리보기를 끌어서 옮깁니다(휴대폰은 두 손가락으로 확대). 주인공 머리 끝을 초록 줄에 맞추고, 얼굴이 글자 위에 오지 않게 하세요.</p>
+      <p class="hint">미리보기를 끌어서 옮겨요(휴대폰은 두 손가락으로 확대). 주인공 머리 끝을 초록 줄에 맞추고, 얼굴이 글자 위에 오지 않게 해 주세요.</p>
       <div class="checks">
         <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(초록) 보기</label>
         <label><input type="checkbox" id="gMid" checked> 가운데 십자 줄(하늘) 보기</label>
@@ -186,7 +186,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <ul class="warns" id="warns"></ul>
       </div>
       <button class="primary" id="save" disabled>커버 PNG 저장</button>
-      <p class="hint">저장한 파일을 그 회차 갠콘 폴더에 「커버.png」로 넣고, 업로드할 때 커버로 고르세요. 안내선은 저장되지 않습니다.</p>
+      <p class="hint">저장한 파일을 그 회차 갠콘 폴더에 「커버.png」로 넣고, 업로드할 때 커버로 골라 주세요. 안내선은 저장되지 않아요.</p>
     </section>
   </div>
 </div>
@@ -308,22 +308,22 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       var n = chars(L[i]), el = $("c" + (i + 1));
       el.textContent = n + "/7"; el.classList.toggle("bad", n > 7);
     });
-    if (S.fontError) { w.push(["글꼴을 불러오지 못했습니다. 페이지를 새로 고치세요.", 1]); }
-    if (!S.src) { w.push(["1번에서 영상이나 사진을 여세요.", 1]); }
-    if (!L[0] || !L[1]) { w.push(["문구 두 줄을 모두 적으세요.", 1]); }
+    if (S.fontError) { w.push(["글꼴을 불러오지 못했어요. 페이지를 새로 고쳐 주세요.", 1]); }
+    if (!S.src) { w.push(["1번에서 영상이나 사진을 열어 주세요.", 1]); }
+    if (!L[0] || !L[1]) { w.push(["문구 두 줄을 모두 적어 주세요.", 1]); }
     L.forEach(function (s, i) {
       var nm = i ? "아랫줄" : "윗줄";
-      if (EMOJI.test(s)) w.push([nm + "에 이모지가 있습니다. 빼 주세요.", 1]);
-      if (widths[i] > T.maxLine) w.push([nm + "이 너무 깁니다(" + widths[i] + "px, 한도 " + T.maxLine + "). 글자를 줄이세요.", 1]);
-      else if (chars(s) > 7) w.push([nm + " " + chars(s) + "자: 7자 이하를 권합니다.", 0]);
-      if (s && chars(s) < 3) w.push([nm + "이 너무 짧습니다(3자 이상 권장).", 0]);
-      if (PUNCT.test(s)) w.push([nm + "에 문장부호가 있습니다. 커버에는 쓰지 않습니다.", 0]);
-      if (/전주대/.test(s)) w.push([nm + "에 학교명이 있습니다. 로고가 대신하니 빼는 걸 권합니다.", 0]);
+      if (EMOJI.test(s)) w.push([nm + "에 이모지가 있어요. 빼 주세요.", 1]);
+      if (widths[i] > T.maxLine) w.push([nm + "이 너무 길어요(" + widths[i] + "px, 한도 " + T.maxLine + "). 글자를 줄여 주세요.", 1]);
+      else if (chars(s) > 7) w.push([nm + " " + chars(s) + "자: 7자 이하가 좋아요.", 0]);
+      if (s && chars(s) < 3) w.push([nm + "이 너무 짧아요(3자 이상이 좋아요).", 0]);
+      if (PUNCT.test(s)) w.push([nm + "에 문장부호가 있어요. 커버에는 쓰지 않아요.", 0]);
+      if (/전주대/.test(s)) w.push([nm + "에 학교명이 있어요. 로고가 대신하니 빼는 게 좋아요.", 0]);
     });
-    if (S.src && S.zoom * Math.max(T.W / S.sw, T.H / S.sh) > 1.15) w.push(["사진이 많이 확대돼 흐릴 수 있습니다(원본 " + S.sw + "×" + S.sh + ").", 0]);
+    if (S.src && S.zoom * Math.max(T.W / S.sw, T.H / S.sh) > 1.15) w.push(["사진이 많이 확대돼 흐릴 수 있어요(원본 " + S.sw + "×" + S.sh + ").", 0]);
     block = w.some(function (x) { return x[1]; });
     var ul = $("warns"); ul.innerHTML = "";
-    if (!w.length) { var li = document.createElement("li"); li.className = "good"; li.textContent = "저장해도 됩니다. 머리 끝 줄만 한 번 더 보세요."; ul.appendChild(li); }
+    if (!w.length) { var li = document.createElement("li"); li.className = "good"; li.textContent = "저장해도 돼요. 머리 끝 줄만 한 번 더 봐 주세요."; ul.appendChild(li); }
     w.forEach(function (x) { var li = document.createElement("li"); li.textContent = (x[1] ? "" : "확인: ") + x[0]; if (!x[1]) li.style.color = "var(--soft)"; ul.appendChild(li); });
     $("save").disabled = block;
   }
@@ -333,7 +333,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   var loadT = null;
   function showLoading(file, what) {
     var t0 = Date.now();
-    $("loadMsg").textContent = what + " 불러오는 중";
+    $("loadMsg").textContent = what + " 불러오고 있어요";
     $("loadSub").textContent = file.name + " · " + (file.size / 1048576).toFixed(1) + "MB";
     $("loadTime").textContent = "";
     $("loading").hidden = false; $("empty").hidden = true;
@@ -398,7 +398,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     }
     $("seeking").hidden = true;
     if (!$("loading").hidden && !S.analyzing) hideLoading();
-    if (isBlank()) $("srcname").textContent = "장면이 검게 나오면: 이 기기에서 영상 장면을 못 그린 것입니다. 원하는 장면을 캡처해 그 사진을 여세요.";
+    if (isBlank()) $("srcname").textContent = "장면이 검게 나오면: 이 기기에서 영상 장면을 못 그린 거예요. 원하는 장면을 캡처해 그 사진을 열어 주세요.";
     else if (firstFrame) { firstFrame = false; }
   }
   function frameReady() {
@@ -410,13 +410,13 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   function videoFail(file) {
     openImage(file, function () {
       hideLoading();
-      $("srcname").textContent = "이 영상은 이 PC 브라우저에서 열리지 않습니다(" + file.name + "). 아이폰 영상(HEVC)이면 원하는 장면을 영상 플레이어에서 캡처해 그 사진을 여세요.";
+      $("srcname").textContent = "이 영상은 이 PC 브라우저에서 열리지 않아요(" + file.name + "). 아이폰 영상(HEVC)이면 원하는 장면을 영상 플레이어에서 캡처해 그 사진을 열어 주세요.";
     });
   }
   function openImage(file, fail) {
     var img = new Image();
     img.onload = function () { setSource(img, img.naturalWidth, img.naturalHeight, file.name, "image"); };
-    img.onerror = fail || function () { hideLoading(); $("srcname").textContent = "열지 못했습니다: " + file.name; };
+    img.onerror = fail || function () { hideLoading(); $("srcname").textContent = "열지 못했어요: " + file.name; };
     img.src = URL.createObjectURL(file);
   }
   function openFile(file) {
@@ -530,23 +530,23 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     S.analyzing = true;
     clearInterval(loadT);
     $("loading").hidden = false; $("empty").hidden = true;
-    var LINES = ["커버 각 나오는 컷 찾는 중", "머리 끝 줄 딱 맞는 순간 찾는 중", "제일 잘 나온 표정 고르는 중", "흔들린 컷은 슬쩍 거르는 중"], li = 0;
-    $("loadMsg").textContent = LINES[0]; $("loadTime").textContent = "영상 처음부터 끝까지 훑는 중";
+    var LINES = ["커버 각 나오는 컷 찾고 있어요", "머리 끝 줄 딱 맞는 순간 찾고 있어요", "제일 잘 나온 표정 고르고 있어요", "흔들린 컷은 슬쩍 거르고 있어요"], li = 0;
+    $("loadMsg").textContent = LINES[0]; $("loadTime").textContent = "영상 처음부터 끝까지 훑고 있어요";
     var lineT = setInterval(function () { if (my !== recToken || ended) { clearInterval(lineT); return; } li = (li + 1) % LINES.length; $("loadMsg").textContent = LINES[li]; }, 2500);
     $("loadBar").hidden = false; $("loadBarIn").style.width = "0%";
     $("loadSkip").hidden = false; $("loadSkip").onclick = function () { if (my === recToken) finish(); };
     var capT = setTimeout(function () { if (my === recToken) finish(); }, 45000);
     $("recs").hidden = false; $("recList").innerHTML = ""; $("recSpin").hidden = false;
-    $("recMsg").textContent = "커버 각 나오는 컷 찾는 중";
+    $("recMsg").textContent = "커버 각 나오는 컷 찾고 있어요";
     var n = Math.max(12, Math.min(30, Math.round(dur * 1.2))), times = [], out = [], det = null;
     for (var i = 0; i < n; i++) times.push(Math.min(dur - 0.05, 0.3 + i * Math.max(0, dur - 0.6) / (n - 1)));
     function step(idx) {
       if (my !== recToken) return;
       if (ended) return;
       if (idx >= times.length) { finish(); return; }
-      $("loadTime").textContent = (idx + 1) + " / " + times.length + "컷 보는 중" + (det ? "" : " (사람 인식 없이)");
+      $("loadTime").textContent = (idx + 1) + " / " + times.length + "컷 보고 있어요" + (det ? "" : " (사람 인식 없이)");
       $("loadBarIn").style.width = Math.round(idx / times.length * 100) + "%";
-      $("recMsg").textContent = "커버 각 나오는 컷 찾는 중 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
+      $("recMsg").textContent = "커버 각 나오는 컷 찾고 있어요 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
       seek2(times[idx]).then(function () {
         if (my !== recToken || !v2.videoWidth) return;
         var st = grabStats(), box = null;
@@ -670,7 +670,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   // 처음 화면: 예시 사진(실제 작업 땐 1번에서 바꿈)
   var demo = new Image();
   demo.onload = function () {
-    setSource(demo, demo.naturalWidth, demo.naturalHeight, "예시 사진 (영상을 열면 바뀝니다)", "image");
+    setSource(demo, demo.naturalWidth, demo.naturalHeight, "예시 사진 (영상을 열면 바뀌어요)", "image");
     $("l1").value = "홍비디오"; $("l2").value = "체포하겠어"; draw();
   };
   if (location.hash === "#demo") demo.src = "sample.jpg";
