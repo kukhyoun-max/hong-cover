@@ -55,14 +55,15 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 @keyframes spin { to { transform: rotate(360deg); } }
 /* 추천 장면 */
 .recs { display: flex; flex-direction: column; gap: 8px; }
-.rec-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--soft); }
+.rec-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--soft); min-width: 0; }
+.rec-head span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-head .logo-spin { width: 16px; height: 16px; filter: invert(1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rec-head .logo-spin { filter: none; } }
 :root[data-theme="dark"] .rec-head .logo-spin { filter: none; }
 .rec-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .rec { padding: 0; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; text-align: left; background: var(--panel); }
 .rec img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; background: #000; }
-.rec span { padding: 5px 6px 6px; font-size: 11.5px; line-height: 1.35; color: var(--soft); }
+.rec span { padding: 5px 6px 6px; font-size: 11.5px; line-height: 1.35; color: var(--soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec span b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .rec.on { border: 2px solid var(--ink); }
 @media (prefers-reduced-motion: reduce) { .logo-spin { animation-duration: 4s; } }
@@ -78,7 +79,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 
 .panel { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
 h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 4px 0 0; letter-spacing: -0.02em; }
-.intro { color: var(--soft); margin: 0; }
+.intro { color: var(--soft); margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .step h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
 .step h2 .n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; background: var(--ink); color: var(--panel); }
@@ -99,7 +100,12 @@ input[type="range"] { touch-action: manipulation; flex: 1; min-width: 120px; acc
 .count.bad { color: var(--warn); font-weight: 700; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
-.hint { color: var(--soft); font-size: 12.5px; margin: 0; }
+.hint { color: var(--soft); font-size: 12.5px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#srcname { white-space: normal; }   /* 파일 이름·열기 실패 안내는 길 수 있어 줄바꿈 허용 */
+.step-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.step-head h2 { white-space: nowrap; }
+.jumps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.jumps button { padding: 7px 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .checks { display: flex; flex-direction: column; gap: 4px; }
 .checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .out { display: grid; grid-template-columns: 131px 1fr; gap: 14px; align-items: start; }
@@ -118,7 +124,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   <div class="stage" id="stage" aria-label="커버 미리보기. 끌어서 사진 위치를 옮겨요">
     <canvas id="out" width="1080" height="1920"></canvas>
     <canvas id="guide" width="1080" height="1920"></canvas>
-    <div class="empty" id="empty">오늘 커버 주인공은 누구?<br>아래 1번에서 데려와 주세요</div>
+    <div class="empty" id="empty">오늘 커버 주인공은 누구?</div>
     <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오고 있어요</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>그냥 제가 고를게요</button></div>
     <div class="seeking" id="seeking" hidden><img class="logo-spin" src="logos/hong.png" alt="">장면 찾고 있어요</div>
   </div>
@@ -127,15 +133,15 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   <div class="panel">
     <div>
       <h1>홍비디오 커버 만들기</h1>
-      <p class="intro">장면 하나 고르고 두 줄만 적으면 홍비디오 커버 완성! 글꼴·위치·로고는 알아서 맞춰 드려요.</p>
+      <p class="intro">장면 고르고 두 줄만 적으면 커버 완성!</p>
     </div>
 
     <section class="step">
-      <h2><span class="n">1</span>영상 또는 사진 열기</h2>
-      <div class="row">
+      <div class="step-head">
+        <h2><span class="n">1</span>영상 또는 사진 열기</h2>
         <label class="file">영상·사진 열기<input type="file" id="vfile"></label>
-        <span class="hint" id="srcname">갠콘 폴더의 자막 없는(자막 X) 영상을 열어 주세요. 확장자 없는 파일도 돼요</span>
       </div>
+      <p class="hint" id="srcname">갠콘 폴더의 자막 X 영상을 열어 주세요</p>
     </section>
 
     <section class="step" id="sceneStep">
@@ -144,12 +150,15 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="영상 위치" disabled>
         <span class="time" id="time">영상 없음</span>
       </div>
-      <div class="row">
-        <button id="back" disabled>◀ 한 프레임</button>
-        <button id="fwd" disabled>한 프레임 ▶</button>
-        <span class="hint pc-only">키보드 <kbd>←</kbd> <kbd>→</kbd>도 돼요</span>
+      <div class="jumps">
+        <button id="b2" disabled aria-label="2초 앞으로">−2초</button>
+        <button id="b1" disabled aria-label="1초 앞으로">−1초</button>
+        <button id="back" disabled aria-label="한 프레임 앞으로">◀</button>
+        <button id="fwd" disabled aria-label="한 프레임 뒤로">▶</button>
+        <button id="f1" disabled aria-label="1초 뒤로">+1초</button>
+        <button id="f2" disabled aria-label="2초 뒤로">+2초</button>
       </div>
-      <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋아요. 화면에 자막·스티커가 있는 장면은 피해 주세요.</p>
+      <p class="hint">◀ ▶는 한 프레임씩 · 자막 없는 장면이 좋아요</p>
       <div class="recs" id="recs" hidden>
         <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">커버 각 나오는 컷 찾고 있어요</span></div>
         <div class="rec-list" id="recList"></div>
@@ -160,16 +169,16 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <h2><span class="n">3</span>커버 문구 두 줄</h2>
       <div class="line-in"><label for="l1">윗줄</label><input id="l1" maxlength="12" autocomplete="off"><span class="count" id="c1">0/7</span></div>
       <div class="line-in"><label for="l2">아랫줄</label><input id="l2" maxlength="12" autocomplete="off"><span class="count" id="c2">0/7</span></div>
-      <p class="hint">장면의 한마디. 한 줄 3~7자, 아랫줄이 펀치라인이 되게 나눠요. 문장부호·이모지·학교명은 쓰지 않아요. 예시를 누르면 채워져요.</p>
+      <p class="hint">한 줄 3~7자, 아랫줄이 펀치라인이에요</p>
       <div class="chips" id="examples"></div>
     </section>
 
     <section class="step">
       <h2><span class="n">4</span>사진 위치</h2>
       <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:70px">45% 기본</span></div>
-      <p class="hint" style="margin-top:-4px">아래쪽 그라데이션 진하기예요. 밝은 장면에서 글자가 안 읽히면 올려 주세요.</p>
+      <p class="hint" style="margin-top:-4px">글자가 안 읽히면 그림자를 올려 주세요</p>
       <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
-      <p class="hint">미리보기를 끌어서 옮겨요(휴대폰은 두 손가락으로 확대). 주인공 머리 끝을 초록 줄에 맞추고, 얼굴이 글자 위에 오지 않게 해 주세요.</p>
+      <p class="hint">끌어서 옮기고 머리 끝을 초록 줄에 맞춰요</p>
       <div class="checks">
         <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(초록) 보기</label>
         <label><input type="checkbox" id="gMid" checked> 가운데 십자 줄(하늘) 보기</label>
@@ -186,7 +195,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <ul class="warns" id="warns"></ul>
       </div>
       <button class="primary" id="save" disabled>커버 PNG 저장</button>
-      <p class="hint">저장한 파일을 그 회차 갠콘 폴더에 「커버.png」로 넣고, 업로드할 때 커버로 골라 주세요. 안내선은 저장되지 않아요.</p>
+      <p class="hint">갠콘 폴더에 「커버.png」로 넣어 주세요</p>
     </section>
   </div>
 </div>
@@ -351,7 +360,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     S.src = el; S.sw = w; S.sh = h; S.name = name; S.kind = kind; S.px = 0.5; S.py = 0.5; S.zoom = 1; $("zoom").value = 100;
     $("empty").hidden = true; $("srcname").textContent = name;
     var isV = kind === "video";
-    ["seek", "back", "fwd"].forEach(function (id) { $(id).disabled = !isV; });
+    ["seek", "back", "fwd", "b1", "b2", "f1", "f2"].forEach(function (id) { $(id).disabled = !isV; });
     if (!isV) $("time").textContent = "사진";
     draw();
   }
@@ -450,6 +459,10 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   $("seek").oninput = function () { seekTo(this.value / 1000 * video.duration); };
   $("back").onclick = function () { seekTo(want - 1 / FPS); };
   $("fwd").onclick = function () { seekTo(want + 1 / FPS); };
+  $("b1").onclick = function () { seekTo(want - 1); };
+  $("b2").onclick = function () { seekTo(want - 2); };
+  $("f1").onclick = function () { seekTo(want + 1); };
+  $("f2").onclick = function () { seekTo(want + 2); };
   document.addEventListener("keydown", function (e) {
     if (S.kind !== "video" || /INPUT/.test(document.activeElement.tagName) && document.activeElement.type !== "range") return;
     if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(want - 1 / FPS); }
@@ -596,13 +609,13 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       });
       picks.sort(function (a, b) { return a.t - b.t; });
       $("recSpin").hidden = true;
-      $("recMsg").textContent = picks.length ? "커버 각 나온 컷 " + picks.length + "개 · 누르면 그 장면으로 가고 머리 끝 줄에 맞춰져요" : "딱 맞는 컷을 못 찾았어요. 슬라이더로 직접 골라 주세요.";
+      $("recMsg").textContent = picks.length ? "커버 각 나온 컷 " + picks.length + "개 · 누르면 바로 맞춰져요" : "딱 맞는 컷이 없어요 · 직접 골라 주세요";
       var list = $("recList"); list.innerHTML = "";
       picks.forEach(function (o) {
         var b = document.createElement("button"); b.type = "button"; b.className = "rec";
         var img = document.createElement("img"); img.alt = fmt(o.t) + " 장면"; img.src = o.img;
         var sp = document.createElement("span"), tb = document.createElement("b"); tb.textContent = fmt(o.t);
-        sp.appendChild(tb); sp.appendChild(document.createElement("br")); sp.appendChild(document.createTextNode(o.why.join(" · ")));
+        sp.appendChild(tb); sp.appendChild(document.createElement("br")); sp.appendChild(document.createTextNode(o.why[0] || "")); b.title = o.why.join(" · ");
         b.appendChild(img); b.appendChild(sp);
         b.onclick = function () {
           list.querySelectorAll(".rec").forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on");
