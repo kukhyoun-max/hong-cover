@@ -50,6 +50,18 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
   font-size: 12.5px; padding: 5px 11px 5px 9px; border-radius: 999px; display: flex; align-items: center; gap: 7px; pointer-events: none; }
 .seeking .logo-spin { width: 18px; height: 18px; animation: spin 1.6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* 추천 장면 */
+.recs { display: flex; flex-direction: column; gap: 8px; }
+.rec-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--soft); }
+.rec-head .logo-spin { width: 16px; height: 16px; filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rec-head .logo-spin { filter: none; } }
+:root[data-theme="dark"] .rec-head .logo-spin { filter: none; }
+.rec-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rec { padding: 0; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; text-align: left; background: var(--panel); }
+.rec img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; background: #000; }
+.rec span { padding: 5px 6px 6px; font-size: 11.5px; line-height: 1.35; color: var(--soft); }
+.rec span b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.rec.on { border: 2px solid var(--ink); }
 @media (prefers-reduced-motion: reduce) { .logo-spin { animation-duration: 4s; } }
 /* 휴대폰: 미리보기를 위에 작게 고정하고 아래 조작 칸만 스크롤한다(미리보기 위는 끌기 전용이라 스크롤이 안 되므로) */
 @media (max-width: 860px) {
@@ -135,6 +147,10 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <span class="hint pc-only">키보드 <kbd>←</kbd> <kbd>→</kbd>도 됩니다</span>
       </div>
       <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋습니다. 화면에 자막·스티커가 있는 장면은 피하세요.</p>
+      <div class="recs" id="recs" hidden>
+        <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">가이드에 맞는 장면 찾는 중</span></div>
+        <div class="rec-list" id="recList"></div>
+      </div>
     </section>
 
     <section class="step">
@@ -317,7 +333,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   }
   function hideLoading() { clearInterval(loadT); $("loading").hidden = true; if (!S.src) $("empty").hidden = false; }
   function setSource(el, w, h, name, kind) {
-    if (kind !== "video") hideLoading();   // 영상은 첫 장면이 실제로 그려진 뒤에 내린다(paintFrame)
+    if (kind !== "video") hideLoading();
+    if (kind !== "video") { recToken++; $("recs").hidden = true; }   // 영상은 첫 장면이 실제로 그려진 뒤에 내린다(paintFrame)
     clearTimeout(video._t);
     S.src = el; S.sw = w; S.sh = h; S.name = name; S.kind = kind; S.px = 0.5; S.py = 0.5; S.zoom = 1; $("zoom").value = 100;
     $("empty").hidden = true; $("srcname").textContent = name;
@@ -343,6 +360,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       ready = true;
       setSource(video, video.videoWidth, video.videoHeight, file.name, "video");
       seekTo(Math.min(1, video.duration / 2));
+      startRecs(url, video.duration);
     }
     video.onloadedmetadata = onReady; video.onloadeddata = onReady; video.oncanplay = onReady;
     video.onerror = function () { videoFail(file); };
@@ -425,6 +443,149 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(want - 1 / FPS); }
     if (e.key === "ArrowRight") { e.preventDefault(); seekTo(want + 1 / FPS); }
   });
+
+  // ── 추천 장면: 영상 전체에서 장면을 고르게 뽑아 사람(머리 끝)을 찾고, 머리 끝 줄·선명도·밝기로 점수를 매겨 4개를 고른다
+  // 사람 찾기는 MediaPipe 물체 인식(efficientdet_lite0, 브라우저 안에서만 돎). 못 불러오면 선명도·밝기로만 고른다.
+  var MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+  var detP = null, recToken = 0;
+  var v2 = document.createElement("video");
+  v2.muted = true; v2.playsInline = true; v2.preload = "auto";
+  v2.setAttribute("muted", ""); v2.setAttribute("playsinline", ""); v2.setAttribute("webkit-playsinline", "");
+  v2.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;";
+  stage.insertBefore(v2, stage.firstChild);
+  var wk = document.createElement("canvas"); wk.width = 360; wk.height = 640;
+  var wx = wk.getContext("2d", { willReadFrequently: true });
+  function detector() {
+    if (!detP) detP = import(MP + "/vision_bundle.mjs").then(function (m) {
+      return m.FilesetResolver.forVisionTasks(MP + "/wasm").then(function (fs) {
+        return m.ObjectDetector.createFromOptions(fs, {
+          baseOptions: { modelAssetPath: "models/efficientdet_lite0.tflite", delegate: "CPU" },
+          runningMode: "IMAGE", scoreThreshold: 0.35, maxResults: 6, categoryAllowlist: ["person"] });
+      });
+    }).catch(function () { return null; });
+    return detP;
+  }
+  function wait(el, ev, ms) {
+    return new Promise(function (ok) {
+      var done = false;
+      function f() { if (!done) { done = true; el.removeEventListener(ev, f); ok(); } }
+      el.addEventListener(ev, f); setTimeout(f, ms);
+    });
+  }
+  function seek2(t) {
+    v2.currentTime = t;
+    return wait(v2, "seeked", 2500).then(function () {
+      return new Promise(function (ok) {
+        var d = false; function f() { if (!d) { d = true; ok(); } }
+        if (v2.requestVideoFrameCallback) v2.requestVideoFrameCallback(f);
+        setTimeout(f, v2.requestVideoFrameCallback ? 300 : 80);
+      });
+    });
+  }
+  function grabStats() {   // 9:16 작업 캔버스(커버의 1/3 크기)에 확대 1·가운데로 그리고 밝기·선명도를 잰다
+    var k = Math.max(360 / v2.videoWidth, 640 / v2.videoHeight), dw = v2.videoWidth * k, dh = v2.videoHeight * k;
+    wx.drawImage(v2, (360 - dw) / 2, (640 - dh) / 2, dw, dh);
+    var d = wx.getImageData(0, 0, 360, 640).data, sum = 0, n = 0, lap = 0, ln = 0, g = new Float32Array(90 * 160), x, y;
+    for (y = 0; y < 160; y++) for (x = 0; x < 90; x++) {
+      var i = ((y * 4) * 360 + x * 4) * 4, v = d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114;
+      g[y * 90 + x] = v; sum += v; n++;
+    }
+    for (y = 1; y < 159; y++) for (x = 1; x < 89; x++) {
+      var c = g[y * 90 + x], L = 4 * c - g[y * 90 + x - 1] - g[y * 90 + x + 1] - g[(y - 1) * 90 + x] - g[(y + 1) * 90 + x];
+      lap += L * L; ln++;
+    }
+    return { bright: sum / n, sharp: lap / ln, dw: dw * 3, dh: dh * 3 };
+  }
+  function fitFor(box, st) {   // 머리 끝을 y 430에, 사람을 가운데로 오게 하는 확대(1~1.15)·위치 (커버 좌표 1080x1920)
+    var a = box.top - (T.H - st.dh) / 2, b = box.cx - (T.W - st.dw) / 2, best = null;
+    for (var z = 1; z <= 1.151; z += 0.01) {
+      var dh = st.dh * z, dw = st.dw * z;
+      var py = dh > T.H + 0.5 ? (T.head - a * z) / (T.H - dh) : 0.5; py = Math.max(0, Math.min(1, py));
+      var px = dw > T.W + 0.5 ? (T.W / 2 - b * z) / (T.W - dw) : 0.5; px = Math.max(0, Math.min(1, px));
+      var head = (T.H - dh) * py + a * z, err = Math.abs(head - T.head);
+      if (!best || err < best.err - 1) best = { z: z, px: px, py: py, head: head, err: err, faceY: head + box.h * z * 0.12 };
+      if (err <= 6) break;
+    }
+    return best;
+  }
+  function recThumb() {   // 그리드 칸(3:4) 부분만 작게
+    var c = document.createElement("canvas"); c.width = 135; c.height = 180;
+    c.getContext("2d").drawImage(wk, 0, T.gridTop / 3, 360, (T.gridBot - T.gridTop) / 3, 0, 0, 135, 180);
+    return c.toDataURL("image/jpeg", 0.75);
+  }
+  function startRecs(url, dur) {
+    var my = ++recToken;
+    $("recs").hidden = false; $("recList").innerHTML = ""; $("recSpin").hidden = false;
+    $("recMsg").textContent = "가이드에 맞는 장면 찾는 중";
+    var n = Math.max(12, Math.min(30, Math.round(dur * 1.2))), times = [], out = [], det = null;
+    for (var i = 0; i < n; i++) times.push(Math.min(dur - 0.05, 0.3 + i * Math.max(0, dur - 0.6) / (n - 1)));
+    function step(idx) {
+      if (my !== recToken) return;
+      if (idx >= times.length) { finish(); return; }
+      $("recMsg").textContent = "가이드에 맞는 장면 찾는 중 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
+      seek2(times[idx]).then(function () {
+        if (my !== recToken || !v2.videoWidth) return;
+        var st = grabStats(), box = null;
+        if (st.bright > 4 && det) {
+          try {
+            var r = det.detect(wk), best = null;
+            (r.detections || []).forEach(function (dd) {
+              var bb = dd.boundingBox, cx = bb.originX + bb.width / 2;
+              var sc = bb.width * bb.height * (1 - Math.min(0.6, Math.abs(cx - 180) / 360));
+              if (!best || sc > best.sc) best = { sc: sc, bb: bb };
+            });
+            if (best) box = { top: best.bb.originY * 3, h: best.bb.height * 3, cx: (best.bb.originX + best.bb.width / 2) * 3, hr: best.bb.height / 640 };
+          } catch (e) {}
+        }
+        out.push({ t: times[idx], st: st, box: box, img: recThumb() });
+      }).then(function () { step(idx + 1); });
+    }
+    detector().then(function (d) {
+      det = d;
+      v2.src = url; v2.load();
+      var pr = v2.play(); if (pr && pr.then) pr.then(function () { v2.pause(); }).catch(function () {});
+      return wait(v2, "loadeddata", 6000);
+    }).then(function () { step(0); });
+    function finish() {
+      var maxS = Math.max.apply(null, out.map(function (o) { return o.st.sharp; }).concat([1]));
+      out.forEach(function (o) {
+        var s = 0.35 * Math.sqrt(o.st.sharp / maxS) - (o.st.bright < 45 ? 0.3 : o.st.bright > 215 ? 0.2 : 0), why = [];
+        if (o.box) {
+          o.fit = fitFor(o.box, o.st);
+          var e = o.fit.err;
+          s += 0.5 * Math.max(0, 1 - e / 160) + 0.15 * Math.min(1, o.box.hr / 0.6);
+          if (o.fit.faceY > 1230) s -= 0.3;
+          why.push(e <= 18 ? "머리 줄 맞음" : "머리 줄 " + (o.fit.head > T.head ? "+" : "−") + Math.round(e) + "px");
+          if (o.box.hr > 0.45) why.push("사람 크게");
+        } else { s -= 0.25; why.push(det ? "사람 못 찾음" : "선명도로 고름"); }
+        if (o.st.sharp / maxS > 0.6) why.push("선명");
+        if (o.st.bright < 45) why.push("어두움");
+        o.score = s; o.why = why;
+      });
+      var picks = [];
+      out.slice().sort(function (a, b) { return b.score - a.score; }).forEach(function (o) {
+        if (picks.length < 4 && picks.every(function (p) { return Math.abs(p.t - o.t) >= Math.min(1.2, dur / 5); })) picks.push(o);
+      });
+      picks.sort(function (a, b) { return a.t - b.t; });
+      $("recSpin").hidden = true;
+      $("recMsg").textContent = picks.length ? "추천 장면 " + picks.length + "개 · 누르면 그 장면으로 가고 머리 끝 줄에 맞춰집니다" : "추천할 장면을 찾지 못했습니다. 슬라이더로 골라 주세요.";
+      var list = $("recList"); list.innerHTML = "";
+      picks.forEach(function (o) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "rec";
+        var img = document.createElement("img"); img.alt = fmt(o.t) + " 장면"; img.src = o.img;
+        var sp = document.createElement("span"), tb = document.createElement("b"); tb.textContent = fmt(o.t);
+        sp.appendChild(tb); sp.appendChild(document.createElement("br")); sp.appendChild(document.createTextNode(o.why.join(" · ")));
+        b.appendChild(img); b.appendChild(sp);
+        b.onclick = function () {
+          list.querySelectorAll(".rec").forEach(function (x) { x.classList.remove("on"); }); b.classList.add("on");
+          if (o.fit) { S.zoom = o.fit.z; S.px = o.fit.px; S.py = o.fit.py; $("zoom").value = Math.round(o.fit.z * 100); }
+          else { S.zoom = 1; S.px = 0.5; S.py = 0.5; $("zoom").value = 100; }
+          seekTo(o.t);
+        };
+        list.appendChild(b);
+      });
+    }
+  }
 
   // ── 위치: 끌기·확대
   var drag = null, pts = {}, pinch = null;
