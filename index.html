@@ -17,7 +17,7 @@
 /* 레이아웃: 왼쪽에 커버 미리보기(화면 높이에 맞춤), 오른쪽에 순서대로 고르는 조작 칸 하나 */
 :root {
   --paper: #e9ebee; --panel: #ffffff; --ink: #16181b; --soft: #5d636b; --line: #d3d7dc;
-  --mark: #e6ff3d;   /* 형광 조끼 노랑: 지금 할 일·켜진 상태 */
+  --mark: #ffffff;   /* 홍비디오 블랙앤화이트: 어두운 덮개 위 진행 막대·끌어 놓기 테두리 */
   --warn: #c2361b; --ok: #1f7a4a;
   --ui: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   --display: "Cafe24Ssurround", "Malgun Gothic", sans-serif;
@@ -41,7 +41,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .stage.drag { cursor: grabbing; }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .stage .empty { position: absolute; inset: 0; display: grid; place-items: center; word-break: keep-all; line-height: 1.6; color: #c9ced4; text-align: center; padding: 24px; font-size: 15px; }
-.stage.drop { outline: 3px solid var(--mark); outline-offset: -3px; }
+.stage.drop { outline: 3px solid var(--ink); outline-offset: -3px; }
 /* 불러오는 중: 미리보기 전체를 덮는 막 + 도는 고리, 장면 찾는 중: 위쪽 작은 칩 */
 .loading { position: fixed; inset: 0; z-index: 50; padding-top: max(20px, env(safe-area-inset-top, 0px)); padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
   background: rgba(10,12,14,.93); color: #fff; text-align: center; padding-left: 20px; padding-right: 20px; font-size: 15px; }
@@ -53,7 +53,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .loading .bar { width: min(220px, 70%); height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
 .loading .bar i { display: block; height: 100%; width: 0; background: var(--mark); transition: width .2s; }
 .loading .skip { margin-top: 4px; background: transparent; color: #fff; border-color: rgba(255,255,255,.45); font-size: 13px; padding: 6px 12px; }
-#shadeVal.hit, #shadeVal.rec { color: var(--ok); font-weight: 700; }
+#shadeVal.hit, #shadeVal.rec { color: var(--ink); font-weight: 800; }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* 추천 장면 */
 .recs { display: flex; flex-direction: column; gap: 8px; }
@@ -99,7 +99,7 @@ input[type="range"] { touch-action: manipulation; flex: 1; min-width: 120px; acc
 .line-in label { color: var(--soft); }
 .line-in input { font: inherit; font-size: 16px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); min-width: 0; }
 .count { font-variant-numeric: tabular-nums; text-align: right; color: var(--soft); }
-.count.bad { color: var(--warn); font-weight: 700; }
+.count.bad { color: var(--ink); font-weight: 800; text-decoration: underline; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
 .hint { color: var(--soft); font-size: 12.5px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -109,13 +109,14 @@ input[type="range"] { touch-action: manipulation; flex: 1; min-width: 120px; acc
 .jumps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 .jumps button { padding: 7px 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .checks { display: flex; flex-direction: column; gap: 4px; }
+.checks input { accent-color: var(--ink); }
 .checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .out { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .out canvas { width: 131px; height: 175px; border-radius: 3px; background: #000; display: block; }
 .warns { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; align-self: stretch; }
 .warns li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.warns li { color: var(--warn); }
-.warns li.good { color: var(--ok); }
+.warns li { color: var(--ink); font-weight: 700; }
+.warns li.good { color: var(--ink); font-weight: 700; }
 kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -181,12 +182,12 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:96px">45%</span></div>
       <p class="hint" style="margin-top:-4px">글자가 안 읽히면 그림자를 올려 주세요</p>
       <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
-      <p class="hint">끌어서 옮기고 머리 끝을 초록 줄에 맞춰요</p>
+      <p class="hint">끌어서 옮기고 머리 끝을 흰 줄에 맞춰요</p>
       <div class="checks">
-        <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(초록) 보기</label>
-        <label><input type="checkbox" id="gMid" checked> 가운데 십자 줄(하늘) 보기</label>
+        <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(흰 실선) 보기</label>
+        <label><input type="checkbox" id="gMid" checked> 가운데 십자 줄(흰 점선) 보기</label>
         <label><input type="checkbox" id="gGrid" checked> 프로필 그리드에 보이는 칸(흰 점선) 보기</label>
-        <label><input type="checkbox" id="gUi"> 오른쪽 버튼 가림(주황) 보기</label>
+        <label><input type="checkbox" id="gUi"> 오른쪽 버튼 가림(회색) 보기</label>
 
       </div>
     </section>
@@ -364,23 +365,24 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     }
     headFeedback();
     if ($("gHead").checked) {
-      gctx.save(); gctx.fillStyle = "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
-      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = 3; gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
-      gctx.font = "bold 30px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)"; gctx.fillText("머리 끝", 20, T.headLo - 10);
+      gctx.save(); gctx.fillStyle = "rgba(255,255,255,.14)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
+      gctx.shadowColor = "rgba(0,0,0,.7)"; gctx.shadowBlur = 5;
+      gctx.strokeStyle = "rgba(255,255,255,.95)"; gctx.lineWidth = 3; gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
+      gctx.font = "bold 30px sans-serif"; gctx.fillStyle = "#fff"; gctx.fillText("머리 끝", 20, T.headLo - 10);
       gctx.restore();
     }
     if (moving && (headHit || midHit)) {   // 끄는 동안 맞은 줄만 노랗게 나타난다
-      gctx.save(); gctx.strokeStyle = "#ffe14d"; gctx.lineWidth = 5; gctx.shadowColor = "rgba(0,0,0,.45)"; gctx.shadowBlur = 6;
+      gctx.save(); gctx.strokeStyle = "#fff"; gctx.lineWidth = 8; gctx.shadowColor = "rgba(0,0,0,.85)"; gctx.shadowBlur = 8;
       gctx.beginPath();
       if (headHit) { gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); }
       if (midHit) { gctx.moveTo(T.W / 2, 0); gctx.lineTo(T.W / 2, T.H); }
       gctx.stroke(); gctx.restore();
     }
     if ($("gMid").checked) {
-      gctx.save(); gctx.strokeStyle = "rgba(90,200,255,.9)"; gctx.lineWidth = 3; gctx.setLineDash([16, 12]);
+      gctx.save(); gctx.strokeStyle = "rgba(255,255,255,.8)"; gctx.lineWidth = 2; gctx.shadowColor = "rgba(0,0,0,.6)"; gctx.shadowBlur = 4; gctx.setLineDash([16, 12]);
       gctx.beginPath(); gctx.moveTo(T.W / 2, 0); gctx.lineTo(T.W / 2, T.H); gctx.moveTo(0, T.H / 2); gctx.lineTo(T.W, T.H / 2); gctx.stroke(); gctx.restore();   // 가로 중앙 y 960 = 전체·그리드 칸(240~1680) 둘 다의 가운데
     }
-    if ($("gUi").checked) { gctx.fillStyle = "rgba(255,150,0,.28)"; gctx.fillRect(T.W - T.ui, 0, T.ui, T.H); gctx.fillRect(0, 0, T.ui, T.H); }
+    if ($("gUi").checked) { gctx.fillStyle = "rgba(0,0,0,.35)"; gctx.fillRect(T.W - T.ui, 0, T.ui, T.H); gctx.fillRect(0, 0, T.ui, T.H); }
   }
   function drawGrid() {
     gridX.fillStyle = "#000"; gridX.fillRect(0, 0, 262, 349);
@@ -413,8 +415,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     w.sort(function (a, b) { return b[1] - a[1]; });   // 저장을 막는 것(빨강)을 위로
     block = w.some(function (x) { return x[1]; });
     var ul = $("warns"); ul.innerHTML = "";
-    if (!w.length) { var li = document.createElement("li"); li.className = "good"; li.textContent = "저장해도 돼요 · 머리 끝 줄만 한 번 더 봐 주세요"; ul.appendChild(li); }
-    w.forEach(function (x) { var li = document.createElement("li"); li.textContent = (x[1] ? "" : "확인: ") + x[0]; if (!x[1]) li.style.color = "var(--soft)"; ul.appendChild(li); });
+    if (!w.length) { var li = document.createElement("li"); li.className = "good"; li.textContent = "✓ 저장해도 돼요 · 머리 끝 줄만 한 번 더 봐 주세요"; ul.appendChild(li); }
+    w.forEach(function (x) { var li = document.createElement("li"); li.textContent = (x[1] ? "✕ " : "확인: ") + x[0]; if (!x[1]) { li.style.color = "var(--soft)"; li.style.fontWeight = "400"; } ul.appendChild(li); });
     $("save").disabled = block;
   }
 
