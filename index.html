@@ -172,7 +172,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       <p class="hint">미리보기를 끌어서 옮깁니다(휴대폰은 두 손가락으로 확대). 주인공 머리 끝을 초록 줄에 맞추고, 얼굴이 글자 위에 오지 않게 하세요.</p>
       <div class="checks">
         <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(초록) 보기</label>
-        <label><input type="checkbox" id="gMid" checked> 가운데 세로 줄(하늘) 보기</label>
+        <label><input type="checkbox" id="gMid" checked> 가운데 십자 줄(하늘) 보기</label>
         <label><input type="checkbox" id="gGrid" checked> 프로필 그리드에 보이는 칸(흰 점선) 보기</label>
         <label><input type="checkbox" id="gUi"> 오른쪽 버튼 가림(주황) 보기</label>
 
@@ -289,7 +289,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     }
     if ($("gMid").checked) {
       gctx.save(); gctx.strokeStyle = "rgba(90,200,255,.9)"; gctx.lineWidth = 3; gctx.setLineDash([16, 12]);
-      gctx.beginPath(); gctx.moveTo(T.W / 2, 0); gctx.lineTo(T.W / 2, T.H); gctx.stroke(); gctx.restore();
+      gctx.beginPath(); gctx.moveTo(T.W / 2, 0); gctx.lineTo(T.W / 2, T.H); gctx.moveTo(0, T.H / 2); gctx.lineTo(T.W, T.H / 2); gctx.stroke(); gctx.restore();   // 가로 중앙 y 960 = 전체·그리드 칸(240~1680) 둘 다의 가운데
     }
     if ($("gUi").checked) { gctx.fillStyle = "rgba(255,150,0,.28)"; gctx.fillRect(T.W - T.ui, 0, T.ui, T.H); gctx.fillRect(0, 0, T.ui, T.H); }
   }
