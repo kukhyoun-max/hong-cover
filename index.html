@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>홍비디오 커버 만들기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  홍비디오 릴스 커버 만들기 (기장용, PC). 2026-11-16
+  결과(1080x1920 PNG)는 06_릴스/template/cover.html의 font "ssurround" 렌더와 같은 틀이다:
+  사진 전면 + 아래 그림자 + 가운데 흰 글씨 2줄(카페24 써라운드, 윗줄 글자 y 1249 / 아랫줄 1358, 자간 -0.03em, 그림자 0 2px 16px .22) + 홍비디오 로고(높이 96, 중심 y 1575).
+  템플릿 값을 바꾸면 여기 T 값도 같이 바꾼다.
+-->
+<style>
+/* 레이아웃: 왼쪽에 커버 미리보기(화면 높이에 맞춤), 오른쪽에 순서대로 고르는 조작 칸 하나 */
+:root {
+  --paper: #e9ebee; --panel: #ffffff; --ink: #16181b; --soft: #5d636b; --line: #d3d7dc;
+  --mark: #e6ff3d;   /* 형광 조끼 노랑: 지금 할 일·켜진 상태 */
+  --warn: #c2361b; --ok: #1f7a4a;
+  --ui: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --display: "Cafe24Ssurround", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b;
+  --warn: #ff7a5c; --ok: #5fd39a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121417; --panel: #1b1e22; --ink: #eceef0; --soft: #9aa1a9; --line: #30353b;
+  --warn: #ff7a5c; --ok: #5fd39a; color-scheme: dark }
+@font-face { font-family: "Cafe24Ssurround"; src: url("fonts/Cafe24Ssurround.ttf") format("truetype"); }
+
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font-family: var(--ui); font-size: 14px; line-height: 1.55; }
+.app { display: grid; grid-template-columns: auto minmax(340px, 420px); gap: 28px; justify-content: center;
+  padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (max-width: 860px) { .app { grid-template-columns: 1fr; } }
+
+.stage { position: sticky; top: 20px; align-self: start; height: calc(100vh - 40px); max-height: 1100px; min-height: 520px; aspect-ratio: 9 / 16; max-width: 100%;
+  border-radius: 6px; overflow: hidden; background: #000; cursor: grab; touch-action: none; user-select: none; }
+.stage.drag { cursor: grabbing; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage .empty { position: absolute; inset: 0; display: grid; place-items: center; color: #c9ced4; text-align: center; padding: 24px; font-size: 15px; }
+.stage.drop { outline: 3px solid var(--mark); outline-offset: -3px; }
+
+.panel { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 4px 0 0; letter-spacing: -0.02em; }
+.intro { color: var(--soft); margin: 0; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.step h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
+.step h2 .n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; background: var(--ink); color: var(--panel); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button, .file { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+button:hover, .file:hover { border-color: var(--ink); }
+button:focus-visible, .file:focus-within, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file { position: relative; display: inline-block; }
+button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 700; padding: 11px 16px; width: 100%; font-size: 15px; }
+button.primary:disabled { opacity: .45; cursor: not-allowed; }
+input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--ink); }
+.time { font-variant-numeric: tabular-nums; color: var(--soft); min-width: 92px; text-align: right; }
+.line-in { display: grid; grid-template-columns: 48px 1fr 46px; gap: 8px; align-items: center; }
+.line-in label { color: var(--soft); }
+.line-in input { font: inherit; font-size: 16px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--ink); min-width: 0; }
+.count { font-variant-numeric: tabular-nums; text-align: right; color: var(--soft); }
+.count.bad { color: var(--warn); font-weight: 700; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
+.hint { color: var(--soft); font-size: 12.5px; margin: 0; }
+.checks { display: flex; flex-direction: column; gap: 4px; }
+.checks label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.out { display: grid; grid-template-columns: 131px 1fr; gap: 14px; align-items: start; }
+.out canvas { width: 131px; height: 175px; border-radius: 3px; background: #000; display: block; }
+.warns { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.warns li { color: var(--warn); }
+.warns li.good { color: var(--ok); }
+kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage" aria-label="커버 미리보기. 끌어서 사진 위치를 옮깁니다">
+    <canvas id="out" width="1080" height="1920"></canvas>
+    <canvas id="guide" width="1080" height="1920"></canvas>
+    <div class="empty" id="empty">영상이나 사진을 여기에 끌어다 놓으세요</div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <h1>홍비디오 커버 만들기</h1>
+      <p class="intro">영상에서 장면을 고르고 두 줄을 적으면 홍비디오 릴스 커버(1080×1920)가 나옵니다. 위치·글꼴·로고는 정해진 틀로 자동으로 맞춰집니다.</p>
+    </div>
+
+    <section class="step">
+      <h2><span class="n">1</span>영상 또는 사진 열기</h2>
+      <div class="row">
+        <label class="file">영상 열기<input type="file" id="vfile" accept="video/*"></label>
+        <label class="file">사진 열기<input type="file" id="ifile" accept="image/*"></label>
+        <span class="hint" id="srcname">자막 없는(자막 X) 영상을 여세요</span>
+      </div>
+    </section>
+
+    <section class="step" id="sceneStep">
+      <h2><span class="n">2</span>장면 고르기</h2>
+      <div class="row">
+        <input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="영상 위치" disabled>
+        <span class="time" id="time">영상 없음</span>
+      </div>
+      <div class="row">
+        <button id="back" disabled>◀ 한 프레임</button>
+        <button id="fwd" disabled>한 프레임 ▶</button>
+        <span class="hint">키보드 <kbd>←</kbd> <kbd>→</kbd>도 됩니다</span>
+      </div>
+      <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋습니다. 화면에 자막·스티커가 있는 장면은 피하세요.</p>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">3</span>커버 문구 두 줄</h2>
+      <div class="line-in"><label for="l1">윗줄</label><input id="l1" maxlength="12" autocomplete="off"><span class="count" id="c1">0/7</span></div>
+      <div class="line-in"><label for="l2">아랫줄</label><input id="l2" maxlength="12" autocomplete="off"><span class="count" id="c2">0/7</span></div>
+      <p class="hint">장면의 한마디. 한 줄 3~7자, 아랫줄이 펀치라인이 되게 나눕니다. 문장부호·이모지·학교명은 쓰지 않습니다. 예시를 누르면 채워집니다.</p>
+      <div class="chips" id="examples"></div>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">4</span>사진 위치</h2>
+      <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
+      <p class="hint">미리보기를 끌어서 옮깁니다. 주인공 머리 끝을 초록 줄에 맞추고, 얼굴이 글자 위에 오지 않게 하세요.</p>
+      <div class="checks">
+        <label><input type="checkbox" id="gHead" checked> 머리 끝 줄(초록) 보기</label>
+        <label><input type="checkbox" id="gGrid" checked> 프로필 그리드에 보이는 칸(흰 점선) 보기</label>
+        <label><input type="checkbox" id="gUi"> 오른쪽 버튼 가림(주황) 보기</label>
+        <label><input type="checkbox" id="dark"> 글자 뒤 더 어둡게(밝은 장면용)</label>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">5</span>확인하고 저장</h2>
+      <div class="out">
+        <canvas id="grid" width="262" height="349" aria-label="프로필 그리드 미리보기"></canvas>
+        <ul class="warns" id="warns"></ul>
+      </div>
+      <button class="primary" id="save" disabled>커버 PNG 저장</button>
+      <p class="hint">저장한 파일을 그 회차 갠콘 폴더에 「커버.png」로 넣고, 업로드할 때 커버로 고르세요. 안내선은 저장되지 않습니다.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ── 템플릿 값 (06_릴스/template/cover.html, font "ssurround")
+  var T = {
+    W: 1080, H: 1920,
+    family: "Cafe24Ssurround", ls: -0.03, ink: [1249, 1358], inkH: 83, ref: "한글가나다홍",
+    maxLine: 780, logoH: 96, logoY: 1575,
+    shade: [[0, 0], [0.55, 0], [0.68, .12], [0.85, .30], [1, .45]],
+    shadeDark: [[0, 0], [0.55, 0], [0.65, .30], [0.73, .42], [0.82, .52], [1, .55]],   // 「체포하겠어」 커버에 쓴 값
+    head: 430, headLo: 413, headHi: 449, gridTop: 240, gridBot: 1680, ui: 150
+  };
+  var EXAMPLES = [["회장님께", "칭찬받았을 때"], ["배우 말고", "배우자"], ["홍비디오", "체포하겠어"], ["시험기간", "도서관 생존기"]];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var out = $("out"), ctx = out.getContext("2d");
+  var gd = $("guide"), gctx = gd.getContext("2d");
+  var gridC = $("grid"), gridX = gridC.getContext("2d");
+  var stage = $("stage");
+  var S = { src: null, sw: 0, sh: 0, kind: "", px: 0.5, py: 0.5, zoom: 1, name: "", fontReady: false };
+  var video = document.createElement("video");
+  video.muted = true; video.playsInline = true; video.preload = "auto";
+  var logo = new Image(); logo.src = "logos/hong.png"; logo.onload = draw;
+
+  // 글꼴: 다 받은 뒤에 위치를 잰다(재지 않으면 다른 글꼴로 그려진다)
+  var face = new FontFace(T.family, 'url("fonts/Cafe24Ssurround.ttf")');
+  face.load().then(function (f) { document.fonts.add(f); S.fontReady = true; draw(); })
+    .catch(function () { S.fontError = true; draw(); });
+
+  // ── 그리기
+  function cover() {   // object-fit: cover + 위치(px,py) + 확대
+    var k = Math.max(T.W / S.sw, T.H / S.sh) * S.zoom, dw = S.sw * k, dh = S.sh * k;
+    return { k: k, dw: dw, dh: dh, x: (T.W - dw) * S.px, y: (T.H - dh) * S.py };
+  }
+  function lines() { return [$("l1").value.trim(), $("l2").value.trim()]; }
+  function measureFont() {
+    ctx.save(); ctx.font = '100px "' + T.family + '"';
+    var m = ctx.measureText(T.ref); ctx.restore();
+    var k = T.inkH / (m.actualBoundingBoxAscent + m.actualBoundingBoxDescent);
+    return { size: 100 * k, asc: m.actualBoundingBoxAscent * k };
+  }
+  var widths = [];
+  function draw() {
+    ctx.clearRect(0, 0, T.W, T.H);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, T.W, T.H);
+    if (S.src) { var c = cover(); ctx.drawImage(S.src, c.x, c.y, c.dw, c.dh); }
+    var g = ctx.createLinearGradient(0, 0, 0, T.H);
+    ($("dark").checked ? T.shadeDark : T.shade).forEach(function (s) { g.addColorStop(s[0], "rgba(0,0,0," + s[1] + ")"); });
+    ctx.fillStyle = g; ctx.fillRect(0, 0, T.W, T.H);
+
+    widths = [];
+    if (S.fontReady) {
+      var f = measureFont(), L = lines();
+      ctx.save();
+      ctx.font = f.size + 'px "' + T.family + '"';
+      ctx.letterSpacing = (T.ls * f.size) + "px";
+      ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+      ctx.fillStyle = "#fff";
+      ctx.shadowColor = "rgba(0,0,0,.22)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 2;
+      L.forEach(function (s, i) {
+        if (!s) { widths.push(0); return; }
+        var w = ctx.measureText(s).width; widths.push(Math.round(w));
+        ctx.fillText(s, (T.W - w) / 2, T.ink[i] + f.asc);
+      });
+      ctx.restore();
+    }
+    if (logo.naturalWidth) {
+      var lw = logo.naturalWidth * T.logoH / logo.naturalHeight;
+      ctx.save(); ctx.shadowColor = "rgba(0,0,0,.2)"; ctx.shadowBlur = 8; ctx.shadowOffsetY = 1;
+      ctx.drawImage(logo, (T.W - lw) / 2, T.logoY - T.logoH / 2, lw, T.logoH); ctx.restore();
+    }
+    drawGuide(); drawGrid(); check();
+  }
+  function drawGuide() {
+    gctx.clearRect(0, 0, T.W, T.H);
+    if (!S.src) return;
+    if ($("gGrid").checked) {
+      gctx.save(); gctx.strokeStyle = "rgba(255,255,255,.85)"; gctx.lineWidth = 4; gctx.setLineDash([18, 14]);
+      gctx.strokeRect(2, T.gridTop, T.W - 4, T.gridBot - T.gridTop);
+      gctx.fillStyle = "rgba(0,0,0,.35)"; gctx.fillRect(0, 0, T.W, T.gridTop); gctx.fillRect(0, T.gridBot, T.W, T.H - T.gridBot);
+      gctx.restore();
+    }
+    if ($("gHead").checked) {
+      gctx.save(); gctx.fillStyle = "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
+      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = 3; gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
+      gctx.font = "bold 30px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)"; gctx.fillText("머리 끝", 20, T.headLo - 10);
+      gctx.restore();
+    }
+    if ($("gUi").checked) { gctx.fillStyle = "rgba(255,150,0,.28)"; gctx.fillRect(T.W - T.ui, 0, T.ui, T.H); gctx.fillRect(0, 0, T.ui, T.H); }
+  }
+  function drawGrid() {
+    gridX.fillStyle = "#000"; gridX.fillRect(0, 0, 262, 349);
+    gridX.imageSmoothingQuality = "high";
+    gridX.drawImage(out, 0, T.gridTop, T.W, T.gridBot - T.gridTop, 0, 0, 262, 349);
+  }
+
+  // ── 점검: 저장을 막는 것(빨강)과 확인할 것
+  var EMOJI = /\p{Extended_Pictographic}/u, PUNCT = /[.,!?~…'"“”‘’·:;\-]/;
+  function chars(s) { return s.replace(/\s/g, "").length; }
+  function check() {
+    var L = lines(), w = [], block = false;
+    [0, 1].forEach(function (i) {
+      var n = chars(L[i]), el = $("c" + (i + 1));
+      el.textContent = n + "/7"; el.classList.toggle("bad", n > 7);
+    });
+    if (S.fontError) { w.push(["글꼴을 불러오지 못했습니다. 페이지를 새로 고치세요.", 1]); }
+    if (!S.src) { w.push(["1번에서 영상이나 사진을 여세요.", 1]); }
+    if (!L[0] || !L[1]) { w.push(["문구 두 줄을 모두 적으세요.", 1]); }
+    L.forEach(function (s, i) {
+      var nm = i ? "아랫줄" : "윗줄";
+      if (EMOJI.test(s)) w.push([nm + "에 이모지가 있습니다. 빼 주세요.", 1]);
+      if (widths[i] > T.maxLine) w.push([nm + "이 너무 깁니다(" + widths[i] + "px, 한도 " + T.maxLine + "). 글자를 줄이세요.", 1]);
+      else if (chars(s) > 7) w.push([nm + " " + chars(s) + "자: 7자 이하를 권합니다.", 0]);
+      if (s && chars(s) < 3) w.push([nm + "이 너무 짧습니다(3자 이상 권장).", 0]);
+      if (PUNCT.test(s)) w.push([nm + "에 문장부호가 있습니다. 커버에는 쓰지 않습니다.", 0]);
+      if (/전주대/.test(s)) w.push([nm + "에 학교명이 있습니다. 로고가 대신하니 빼는 걸 권합니다.", 0]);
+    });
+    if (S.src && S.zoom * Math.max(T.W / S.sw, T.H / S.sh) > 1.15) w.push(["사진이 많이 확대돼 흐릴 수 있습니다(원본 " + S.sw + "×" + S.sh + ").", 0]);
+    block = w.some(function (x) { return x[1]; });
+    var ul = $("warns"); ul.innerHTML = "";
+    if (!w.length) { var li = document.createElement("li"); li.className = "good"; li.textContent = "저장해도 됩니다. 머리 끝 줄만 한 번 더 보세요."; ul.appendChild(li); }
+    w.forEach(function (x) { var li = document.createElement("li"); li.textContent = (x[1] ? "" : "확인: ") + x[0]; if (!x[1]) li.style.color = "var(--soft)"; ul.appendChild(li); });
+    $("save").disabled = block;
+  }
+
+  // ── 불러오기
+  function setSource(el, w, h, name, kind) {
+    S.src = el; S.sw = w; S.sh = h; S.name = name; S.kind = kind; S.px = 0.5; S.py = 0.5; S.zoom = 1; $("zoom").value = 100;
+    $("empty").hidden = true; $("srcname").textContent = name;
+    var isV = kind === "video";
+    ["seek", "back", "fwd"].forEach(function (id) { $(id).disabled = !isV; });
+    if (!isV) $("time").textContent = "사진";
+    draw();
+  }
+  function openVideo(file) {
+    var url = URL.createObjectURL(file);
+    video.onloadeddata = function () {
+      if (!video.videoWidth) { videoFail(file); return; }
+      setSource(video, video.videoWidth, video.videoHeight, file.name, "video");
+      seekTo(Math.min(1, video.duration / 2));
+    };
+    video.onerror = function () { videoFail(file); };
+    video.src = url;
+  }
+  function videoFail(file) {
+    $("srcname").textContent = "이 영상은 브라우저에서 열리지 않습니다(" + file.name + "). 원하는 장면을 캡처해 「사진 열기」로 여세요.";
+  }
+  function openImage(file) {
+    var img = new Image();
+    img.onload = function () { setSource(img, img.naturalWidth, img.naturalHeight, file.name, "image"); };
+    img.onerror = function () { $("srcname").textContent = "사진을 열지 못했습니다: " + file.name; };
+    img.src = URL.createObjectURL(file);
+  }
+  function openFile(file) {
+    if (!file) return;
+    if (/^video\//.test(file.type) || /\.(mp4|mov|m4v|webm)$/i.test(file.name)) openVideo(file); else openImage(file);
+  }
+  $("vfile").onchange = function (e) { openFile(e.target.files[0]); e.target.value = ""; };
+  $("ifile").onchange = function (e) { openFile(e.target.files[0]); e.target.value = ""; };
+  ["dragenter", "dragover"].forEach(function (t) { stage.addEventListener(t, function (e) { e.preventDefault(); stage.classList.add("drop"); }); });
+  ["dragleave", "drop"].forEach(function (t) { stage.addEventListener(t, function (e) { e.preventDefault(); stage.classList.remove("drop"); }); });
+  stage.addEventListener("drop", function (e) { openFile(e.dataTransfer.files[0]); });
+
+  // ── 장면
+  var FPS = 30;
+  function fmt(t) { var m = Math.floor(t / 60), s = t - m * 60; return m + ":" + (s < 10 ? "0" : "") + s.toFixed(2); }
+  function seekTo(t) {
+    if (S.kind !== "video") return;
+    t = Math.max(0, Math.min(video.duration - 0.01, t));
+    video.currentTime = t;
+  }
+  video.addEventListener("seeked", function () {
+    $("time").textContent = fmt(video.currentTime) + " / " + fmt(video.duration);
+    $("seek").value = Math.round(video.currentTime / video.duration * 1000);
+    draw();
+  });
+  $("seek").oninput = function () { seekTo(this.value / 1000 * video.duration); };
+  $("back").onclick = function () { seekTo(video.currentTime - 1 / FPS); };
+  $("fwd").onclick = function () { seekTo(video.currentTime + 1 / FPS); };
+  document.addEventListener("keydown", function (e) {
+    if (S.kind !== "video" || /INPUT/.test(document.activeElement.tagName) && document.activeElement.type !== "range") return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(video.currentTime - 1 / FPS); }
+    if (e.key === "ArrowRight") { e.preventDefault(); seekTo(video.currentTime + 1 / FPS); }
+  });
+
+  // ── 위치: 끌기·확대
+  var drag = null;
+  stage.addEventListener("pointerdown", function (e) {
+    if (!S.src) return; stage.setPointerCapture(e.pointerId); stage.classList.add("drag");
+    drag = { x: e.clientX, y: e.clientY, px: S.px, py: S.py };
+  });
+  stage.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var r = stage.getBoundingClientRect(), sc = T.W / r.width, c = cover();
+    var dx = (e.clientX - drag.x) * sc, dy = (e.clientY - drag.y) * sc;
+    S.px = c.dw > T.W ? clamp(drag.px - dx / (c.dw - T.W)) : 0.5;
+    S.py = c.dh > T.H ? clamp(drag.py - dy / (c.dh - T.H)) : 0.5;
+    draw();
+  });
+  function end() { drag = null; stage.classList.remove("drag"); }
+  stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
+  stage.addEventListener("wheel", function (e) {
+    if (!S.src) return; e.preventDefault();
+    var z = Math.max(100, Math.min(200, +$("zoom").value - Math.sign(e.deltaY) * 4)); $("zoom").value = z; S.zoom = z / 100; draw();
+  }, { passive: false });
+  function clamp(v) { return Math.max(0, Math.min(1, v)); }
+  $("zoom").oninput = function () { S.zoom = this.value / 100; draw(); };
+  $("center").onclick = function () { S.px = 0.5; S.py = 0.5; draw(); };
+  ["gHead", "gGrid", "gUi", "dark"].forEach(function (id) { $(id).onchange = draw; });
+  ["l1", "l2"].forEach(function (id) { $(id).oninput = draw; });
+
+  // ── 예시
+  EXAMPLES.forEach(function (ex) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = ex[0] + " / " + ex[1];
+    b.onclick = function () { $("l1").value = ex[0]; $("l2").value = ex[1]; draw(); };
+    $("examples").appendChild(b);
+  });
+
+  // ── 저장
+  $("save").onclick = function () {
+    draw();
+    out.toBlob(function (blob) {
+      var a = document.createElement("a"), L = lines();
+      a.href = URL.createObjectURL(blob);
+      a.download = "커버_" + (L[0] + " " + L[1]).replace(/[\\/:*?"<>|]/g, "").trim() + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+    }, "image/png");
+  };
+
+  // 처음 화면: 예시 사진(실제 작업 땐 1번에서 바꿈)
+  var demo = new Image();
+  demo.onload = function () {
+    setSource(demo, demo.naturalWidth, demo.naturalHeight, "예시 사진 (영상을 열면 바뀝니다)", "image");
+    $("l1").value = "홍비디오"; $("l2").value = "체포하겠어"; draw();
+  };
+  if (location.hash === "#demo") demo.src = "sample.jpg";
+  draw();
+})();
+</script>
+</body>
+</html>
