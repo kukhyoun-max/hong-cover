@@ -53,11 +53,7 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .loading .bar { width: min(220px, 70%); height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
 .loading .bar i { display: block; height: 100%; width: 0; background: var(--mark); transition: width .2s; }
 .loading .skip { margin-top: 4px; background: transparent; color: #fff; border-color: rgba(255,255,255,.45); font-size: 13px; padding: 6px 12px; }
-.stage.hit { box-shadow: 0 0 0 3px rgba(60,220,120,.9); transition: box-shadow .15s; }
 #shadeVal.hit, #shadeVal.rec { color: var(--ok); font-weight: 700; }
-#shadeVal.hit { animation: pop .25s ease-out; }
-@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
-@media (prefers-reduced-motion: reduce) { #shadeVal.hit { animation: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* 추천 장면 */
 .recs { display: flex; flex-direction: column; gap: 8px; }
@@ -290,7 +286,17 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   }
   // ── 「걸림」 반응: 그림자 추천값·머리 끝 줄에 닿으면 초록으로 바뀌고(휴대폰은 짧은 진동) 가까우면 끌려 붙는다
   var recKey = "", headHit = false, shadeHit = false;
-  function buzz() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+  var hapLabel = null;
+  function buzz() {
+    try {
+      if (navigator.vibrate) { navigator.vibrate(10); return; }
+      if (!hapLabel) {
+        hapLabel = document.createElement("label"); hapLabel.style.cssText = "position:fixed;left:-99px;top:0;opacity:0;pointer-events:none;";
+        var sw = document.createElement("input"); sw.type = "checkbox"; sw.setAttribute("switch", ""); hapLabel.appendChild(sw); document.body.appendChild(hapLabel);
+      }
+      hapLabel.click();
+    } catch (e) {}
+  }
   function measureRec(c) {
     var key = [S.name, S.kind === "video" ? video.currentTime.toFixed(2) : "", c.x | 0, c.y | 0, c.dw | 0].join("|");
     if (key === recKey) return; recKey = key;
@@ -305,20 +311,22 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     var on = r != null && v === r;
     el.textContent = on ? v + "% 딱 추천" : v + "%" + (r != null ? " · 추천 " + r + "%" : "");
     el.classList.toggle("rec", on);
-    if (on && !shadeHit && fromUser) { el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit"); buzz(); }
+    if (on && !shadeHit && fromUser) buzz();
     shadeHit = on;
   }
+  var midHit = false, moving = false;
   function headY() { if (!S.head || !S.src) return null; var c = cover(); return c.y + S.head.top * c.k; }
-  function snapHead() {   // 머리 끝이 줄에서 14px 안이면 줄에 딱 붙인다
-    var y = headY(); if (y == null || Math.abs(y - T.head) > 14) return;
-    var c = cover(); if (c.dh <= T.H + 0.5) return;
-    S.py = clamp((T.head - S.head.top * c.k) / (T.H - c.dh));
+  function headX() { if (!S.head || !S.src) return null; var c = cover(); return c.x + S.head.cx * c.k; }
+  function snapHead() {   // 머리 끝이 줄에서, 사람 가운데가 세로 가운데에서 16px 안이면 딱 붙인다
+    var c = cover(), y = headY(), x = headX();
+    if (y != null && Math.abs(y - T.head) <= 16 && c.dh > T.H + 0.5) S.py = clamp((T.head - S.head.top * c.k) / (T.H - c.dh));
+    if (x != null && Math.abs(x - T.W / 2) <= 16 && c.dw > T.W + 0.5) S.px = clamp((T.W / 2 - S.head.cx * c.k) / (T.W - c.dw));
   }
   function headFeedback() {
-    var y = headY(), on = y != null && y >= T.headLo && y <= T.headHi;
-    stage.classList.toggle("hit", on);
-    if (on && !headHit) buzz();
-    headHit = on; return y;
+    var y = headY(), x = headX();
+    var hOn = y != null && Math.abs(y - T.head) <= 2, mOn = x != null && Math.abs(x - T.W / 2) <= 2;
+    if ((hOn && !headHit) || (mOn && !midHit)) { if (moving) buzz(); }
+    headHit = hOn; midHit = mOn;
   }
   var detBusy = false, detAgain = false, wk3 = document.createElement("canvas"); wk3.width = 360; wk3.height = 640;   // 추천 장면 찾기와 캔버스를 나눠 씀
   function detectCurrent() {   // 지금 장면에서 주인공(가장 크고 가운데에 가까운 사람)의 머리 끝을 원본 좌표로 기억
@@ -354,21 +362,19 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       gctx.fillStyle = "rgba(0,0,0,.35)"; gctx.fillRect(0, 0, T.W, T.gridTop); gctx.fillRect(0, T.gridBot, T.W, T.H - T.gridBot);
       gctx.restore();
     }
-    var hy = headFeedback();
+    headFeedback();
     if ($("gHead").checked) {
-      gctx.save();
-      gctx.fillStyle = headHit ? "rgba(60,220,120,.38)" : "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
-      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = headHit ? 9 : 3;
-      gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
-      gctx.font = "bold " + (headHit ? 40 : 30) + "px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)";
-      gctx.fillText(headHit ? "머리 끝 딱 맞아요" : "머리 끝", 20, T.headLo - 12);
-      if (hy != null && !headHit) {
-        gctx.strokeStyle = "rgba(255,170,40,.95)"; gctx.lineWidth = 4; gctx.setLineDash([14, 10]);
-        gctx.beginPath(); gctx.moveTo(0, hy); gctx.lineTo(T.W, hy); gctx.stroke(); gctx.setLineDash([]);
-        gctx.fillStyle = "rgba(255,170,40,1)"; gctx.font = "bold 28px sans-serif";
-        gctx.fillText("지금 머리 끝 " + (hy > T.head ? "▼ " : "▲ ") + Math.round(Math.abs(hy - T.head)) + "px", 20, hy + (hy > T.head ? 36 : -12));
-      }
+      gctx.save(); gctx.fillStyle = "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
+      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = 3; gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
+      gctx.font = "bold 30px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)"; gctx.fillText("머리 끝", 20, T.headLo - 10);
       gctx.restore();
+    }
+    if (moving && (headHit || midHit)) {   // 끄는 동안 맞은 줄만 노랗게 나타난다
+      gctx.save(); gctx.strokeStyle = "#ffe14d"; gctx.lineWidth = 5; gctx.shadowColor = "rgba(0,0,0,.45)"; gctx.shadowBlur = 6;
+      gctx.beginPath();
+      if (headHit) { gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); }
+      if (midHit) { gctx.moveTo(T.W / 2, 0); gctx.lineTo(T.W / 2, T.H); }
+      gctx.stroke(); gctx.restore();
     }
     if ($("gMid").checked) {
       gctx.save(); gctx.strokeStyle = "rgba(90,200,255,.9)"; gctx.lineWidth = 3; gctx.setLineDash([16, 12]);
@@ -711,14 +717,14 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   function dist() { var a = Object.keys(pts).map(function (k) { return pts[k]; }); return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y); }
   stage.addEventListener("pointerdown", function (e) {
     if (!S.src) return; stage.setPointerCapture(e.pointerId); stage.classList.add("drag");
-    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY }; moving = true;
     if (Object.keys(pts).length === 2) { drag = null; pinch = { d: dist(), z: S.zoom }; return; }
     drag = { x: e.clientX, y: e.clientY, px: S.px, py: S.py };
   });
   stage.addEventListener("pointermove", function (e) {
     if (pts[e.pointerId]) pts[e.pointerId] = { x: e.clientX, y: e.clientY };
     if (pinch && Object.keys(pts).length === 2) {
-      var z = Math.max(1, Math.min(2, pinch.z * dist() / pinch.d)); S.zoom = z; $("zoom").value = Math.round(z * 100); draw(); return;
+      var z = Math.max(1, Math.min(2, pinch.z * dist() / pinch.d)); S.zoom = z; $("zoom").value = Math.round(z * 100); snapHead(); draw(); return;
     }
     if (!drag) return;
     var r = stage.getBoundingClientRect(), sc = T.W / r.width, c = cover();
@@ -728,14 +734,15 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     snapHead();
     draw();
   });
-  function end(e) { delete pts[e.pointerId]; if (Object.keys(pts).length < 2) pinch = null; drag = null; stage.classList.remove("drag"); }
+  function end(e) { delete pts[e.pointerId]; if (Object.keys(pts).length < 2) pinch = null; drag = null; stage.classList.remove("drag"); if (!Object.keys(pts).length) { moving = false; draw(); } }
   stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
   stage.addEventListener("wheel", function (e) {
     if (!S.src) return; e.preventDefault();
     var z = Math.max(100, Math.min(200, +$("zoom").value - Math.sign(e.deltaY) * 4)); $("zoom").value = z; S.zoom = z / 100; draw();
   }, { passive: false });
   function clamp(v) { return Math.max(0, Math.min(1, v)); }
-  $("zoom").oninput = function () { S.zoom = this.value / 100; snapHead(); draw(); };
+  $("zoom").oninput = function () { moving = true; S.zoom = this.value / 100; snapHead(); draw(); };
+  $("zoom").onchange = function () { moving = false; draw(); };
   $("center").onclick = function () { S.px = 0.5; S.py = 0.5; draw(); };
   ["gHead", "gMid", "gGrid", "gUi"].forEach(function (id) { $(id).onchange = draw; });
   $("shade").oninput = function () {
