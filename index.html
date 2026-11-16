@@ -46,7 +46,8 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .loading { position: fixed; inset: 0; z-index: 50; padding-top: max(20px, env(safe-area-inset-top, 0px)); padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
   background: rgba(10,12,14,.93); color: #fff; text-align: center; padding-left: 20px; padding-right: 20px; font-size: 15px; }
 .loading .logo-spin { width: 76px; height: 76px; animation: spin 1.6s linear infinite; filter: drop-shadow(0 2px 8px rgba(0,0,0,.4)); }
-.loading .sub { color: #c9ced4; font-size: 12.5px; max-width: 24ch; word-break: break-all; }
+.loading .sub { color: #c9ced4; font-size: 12.5px; max-width: min(320px, 80vw); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loading .sub:empty { display: none; }
 .seeking { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3; background: rgba(10,12,14,.82); color: #fff;
   font-size: 13px; padding: 14px 18px 12px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; white-space: nowrap; }
 .seeking .logo-spin { width: 40px; height: 40px; animation: spin 1.6s linear infinite; }
@@ -630,7 +631,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     clearInterval(loadT);
     $("loading").hidden = false; $("empty").hidden = true;
     var LINES = ["커버 각 나오는 컷 찾고 있어요", "머리 끝 줄 딱 맞는 순간 찾고 있어요", "제일 잘 나온 표정 고르고 있어요", "흔들린 컷은 슬쩍 거르고 있어요"], li = 0;
-    $("loadMsg").textContent = LINES[0]; $("loadTime").textContent = "영상 처음부터 끝까지 훑고 있어요";
+    $("loadMsg").textContent = LINES[0]; $("loadTime").textContent = "";
     var lineT = setInterval(function () { if (my !== recToken || ended) { clearInterval(lineT); return; } li = (li + 1) % LINES.length; $("loadMsg").textContent = LINES[li]; }, 2500);
     $("loadBar").hidden = false; $("loadBarIn").style.width = "0%";
     $("loadSkip").hidden = false; $("loadSkip").onclick = function () { if (my === recToken) finish(); };
@@ -643,7 +644,6 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       if (my !== recToken) return;
       if (ended) return;
       if (idx >= times.length) { finish(); return; }
-      $("loadTime").textContent = (idx + 1) + " / " + times.length + "컷 보고 있어요" + (det ? "" : " (사람 인식 없이)");
       $("loadBarIn").style.width = Math.round(idx / times.length * 100) + "%";
       $("recMsg").textContent = "커버 각 나오는 컷 찾고 있어요 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
       seek2(times[idx]).then(function () {
