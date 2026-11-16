@@ -717,6 +717,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
           if (o.fit) { S.zoom = o.fit.z; S.px = o.fit.px; S.py = o.fit.py; $("zoom").value = Math.round(o.fit.z * 100); }
           else { S.zoom = 1; S.px = 0.5; S.py = 0.5; $("zoom").value = 100; }
           seekTo(o.t);
+          setTimeout(function () { goStep($("l1").closest(".step")); }, 350);   // 추천 컷을 고르면 3번(문구)으로
         };
         list.appendChild(b);
       });
