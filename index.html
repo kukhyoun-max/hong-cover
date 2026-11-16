@@ -43,12 +43,15 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .stage.drop { outline: 3px solid var(--mark); outline-offset: -3px; }
 /* 불러오는 중: 미리보기 전체를 덮는 막 + 도는 고리, 장면 찾는 중: 위쪽 작은 칩 */
 .loading { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background: rgba(10,12,14,.72); color: #fff; text-align: center; padding: 20px; font-size: 15px; }
+  background: rgba(10,12,14,.88); color: #fff; text-align: center; padding: 20px; font-size: 15px; }
 .loading .logo-spin { width: 76px; height: 76px; animation: spin 1.6s linear infinite; filter: drop-shadow(0 2px 8px rgba(0,0,0,.4)); }
 .loading .sub { color: #c9ced4; font-size: 12.5px; max-width: 24ch; word-break: break-all; }
 .seeking { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 3; background: rgba(10,12,14,.78); color: #fff;
   font-size: 12.5px; padding: 5px 11px 5px 9px; border-radius: 999px; display: flex; align-items: center; gap: 7px; pointer-events: none; }
 .seeking .logo-spin { width: 18px; height: 18px; animation: spin 1.6s linear infinite; }
+.loading .bar { width: min(220px, 70%); height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
+.loading .bar i { display: block; height: 100%; width: 0; background: var(--mark); transition: width .2s; }
+.loading .skip { margin-top: 4px; background: transparent; color: #fff; border-color: rgba(255,255,255,.45); font-size: 13px; padding: 6px 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* 추천 장면 */
 .recs { display: flex; flex-direction: column; gap: 8px; }
@@ -116,7 +119,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     <canvas id="out" width="1080" height="1920"></canvas>
     <canvas id="guide" width="1080" height="1920"></canvas>
     <div class="empty" id="empty">아래 1번에서 영상이나 사진을 여세요</div>
-    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오는 중</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div></div>
+    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오는 중</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>건너뛰고 바로 고르기</button></div>
     <div class="seeking" id="seeking" hidden><img class="logo-spin" src="logos/hong.png" alt="">장면 찾는 중</div>
   </div>
   </div>
@@ -339,10 +342,10 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       if (s >= 3) $("loadTime").textContent = s + "초째 · 큰 영상은 10초쯤 걸려요";
     }, 1000);
   }
-  function hideLoading() { clearInterval(loadT); $("loading").hidden = true; if (!S.src) $("empty").hidden = false; }
+  function hideLoading() { clearInterval(loadT); $("loading").hidden = true; $("loadBar").hidden = true; $("loadSkip").hidden = true; if (!S.src) $("empty").hidden = false; }
   function setSource(el, w, h, name, kind) {
     if (kind !== "video") hideLoading();
-    if (kind !== "video") { recToken++; $("recs").hidden = true; }   // 영상은 첫 장면이 실제로 그려진 뒤에 내린다(paintFrame)
+    if (kind !== "video") { recToken++; S.analyzing = false; $("recs").hidden = true; }   // 영상은 첫 장면이 실제로 그려진 뒤에 내린다(paintFrame)
     clearTimeout(video._t);
     S.src = el; S.sw = w; S.sh = h; S.name = name; S.kind = kind; S.px = 0.5; S.py = 0.5; S.zoom = 1; $("zoom").value = 100;
     $("empty").hidden = true; $("srcname").textContent = name;
@@ -393,7 +396,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       paintT = setTimeout(paintFrame, 250); return;
     }
     $("seeking").hidden = true;
-    if (!$("loading").hidden) hideLoading();
+    if (!$("loading").hidden && !S.analyzing) hideLoading();
     if (isBlank()) $("srcname").textContent = "장면이 검게 나오면: 이 기기에서 영상 장면을 못 그린 것입니다. 원하는 장면을 캡처해 그 사진을 여세요.";
     else if (firstFrame) { firstFrame = false; }
   }
@@ -522,14 +525,24 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     return c.toDataURL("image/jpeg", 0.75);
   }
   function startRecs(url, dur) {
-    var my = ++recToken;
+    var my = ++recToken, ended = false;
+    S.analyzing = true;
+    clearInterval(loadT);
+    $("loading").hidden = false; $("empty").hidden = true;
+    $("loadMsg").textContent = "가이드에 맞는 장면 찾는 중"; $("loadTime").textContent = "영상 전체를 훑어보고 있어요";
+    $("loadBar").hidden = false; $("loadBarIn").style.width = "0%";
+    $("loadSkip").hidden = false; $("loadSkip").onclick = function () { if (my === recToken) finish(); };
+    var capT = setTimeout(function () { if (my === recToken) finish(); }, 45000);
     $("recs").hidden = false; $("recList").innerHTML = ""; $("recSpin").hidden = false;
     $("recMsg").textContent = "가이드에 맞는 장면 찾는 중";
     var n = Math.max(12, Math.min(30, Math.round(dur * 1.2))), times = [], out = [], det = null;
     for (var i = 0; i < n; i++) times.push(Math.min(dur - 0.05, 0.3 + i * Math.max(0, dur - 0.6) / (n - 1)));
     function step(idx) {
       if (my !== recToken) return;
+      if (ended) return;
       if (idx >= times.length) { finish(); return; }
+      $("loadTime").textContent = (idx + 1) + " / " + times.length + " 장면 확인" + (det ? "" : " (사람 인식 없이)");
+      $("loadBarIn").style.width = Math.round(idx / times.length * 100) + "%";
       $("recMsg").textContent = "가이드에 맞는 장면 찾는 중 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
       seek2(times[idx]).then(function () {
         if (my !== recToken || !v2.videoWidth) return;
@@ -555,6 +568,10 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       return wait(v2, "loadeddata", 6000);
     }).then(function () { step(0); });
     function finish() {
+      if (ended) return;
+      ended = true; clearTimeout(capT); S.analyzing = false;
+      $("loadBarIn").style.width = "100%";
+      hideLoading();
       var maxS = Math.max.apply(null, out.map(function (o) { return o.st.sharp; }).concat([1]));
       out.forEach(function (o) {
         var s = 0.35 * Math.sqrt(o.st.sharp / maxS) - (o.st.bright < 45 ? 0.3 : o.st.bright > 215 ? 0.2 : 0), why = [];
