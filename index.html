@@ -734,7 +734,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     snapHead();
     draw();
   });
-  function end(e) { delete pts[e.pointerId]; if (Object.keys(pts).length < 2) pinch = null; drag = null; stage.classList.remove("drag"); if (!Object.keys(pts).length) { moving = false; draw(); } }
+  function end(e) { if (e.type === "pointerup" && e.pointerType !== "mouse" && !navigator.vibrate && (headHit || midHit)) buzz();   // 아이폰: 끄는 중엔 웹에서 진동을 못 내서, 맞은 채로 손을 뗄 때 톡
+    delete pts[e.pointerId]; if (Object.keys(pts).length < 2) pinch = null; drag = null; stage.classList.remove("drag"); if (!Object.keys(pts).length) { moving = false; draw(); } }
   stage.addEventListener("pointerup", end); stage.addEventListener("pointercancel", end);
   stage.addEventListener("wheel", function (e) {
     if (!S.src) return; e.preventDefault();
@@ -742,7 +743,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   }, { passive: false });
   function clamp(v) { return Math.max(0, Math.min(1, v)); }
   $("zoom").oninput = function () { moving = true; S.zoom = this.value / 100; snapHead(); draw(); };
-  $("zoom").onchange = function () { moving = false; draw(); };
+  $("zoom").onchange = function () { if (!navigator.vibrate && (headHit || midHit)) buzz(); moving = false; draw(); };
+  $("shade").onchange = function () { if (!navigator.vibrate && S.recShade != null && +this.value === S.recShade) buzz(); };
   $("center").onclick = function () { S.px = 0.5; S.py = 0.5; draw(); };
   ["gHead", "gMid", "gGrid", "gUi"].forEach(function (id) { $(id).onchange = draw; });
   $("shade").oninput = function () {
