@@ -119,7 +119,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     <canvas id="out" width="1080" height="1920"></canvas>
     <canvas id="guide" width="1080" height="1920"></canvas>
     <div class="empty" id="empty">아래 1번에서 영상이나 사진을 여세요</div>
-    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오는 중</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>건너뛰고 바로 고르기</button></div>
+    <div class="loading" id="loading" hidden role="status" aria-live="polite"><img class="logo-spin" src="logos/hong.png" alt=""><div id="loadMsg">영상 불러오는 중</div><div class="sub" id="loadTime"></div><div class="sub" id="loadSub"></div><div class="bar" id="loadBar" hidden><i id="loadBarIn"></i></div><button type="button" class="skip" id="loadSkip" hidden>그냥 내가 고를래</button></div>
     <div class="seeking" id="seeking" hidden><img class="logo-spin" src="logos/hong.png" alt="">장면 찾는 중</div>
   </div>
   </div>
@@ -151,7 +151,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       </div>
       <p class="hint">표정이나 몸짓만으로 상황이 읽히는 장면이 좋습니다. 화면에 자막·스티커가 있는 장면은 피하세요.</p>
       <div class="recs" id="recs" hidden>
-        <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">가이드에 맞는 장면 찾는 중</span></div>
+        <div class="rec-head"><img class="logo-spin" src="logos/hong.png" alt="" id="recSpin"><span id="recMsg">커버 각 나오는 컷 찾는 중</span></div>
         <div class="rec-list" id="recList"></div>
       </div>
     </section>
@@ -530,21 +530,23 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     S.analyzing = true;
     clearInterval(loadT);
     $("loading").hidden = false; $("empty").hidden = true;
-    $("loadMsg").textContent = "가이드에 맞는 장면 찾는 중"; $("loadTime").textContent = "영상 전체를 훑어보고 있어요";
+    var LINES = ["커버 각 나오는 컷 찾는 중", "머리 끝 줄 딱 맞는 순간 찾는 중", "제일 잘 나온 표정 고르는 중", "흔들린 컷은 슬쩍 거르는 중"], li = 0;
+    $("loadMsg").textContent = LINES[0]; $("loadTime").textContent = "영상 처음부터 끝까지 훑는 중";
+    var lineT = setInterval(function () { if (my !== recToken || ended) { clearInterval(lineT); return; } li = (li + 1) % LINES.length; $("loadMsg").textContent = LINES[li]; }, 2500);
     $("loadBar").hidden = false; $("loadBarIn").style.width = "0%";
     $("loadSkip").hidden = false; $("loadSkip").onclick = function () { if (my === recToken) finish(); };
     var capT = setTimeout(function () { if (my === recToken) finish(); }, 45000);
     $("recs").hidden = false; $("recList").innerHTML = ""; $("recSpin").hidden = false;
-    $("recMsg").textContent = "가이드에 맞는 장면 찾는 중";
+    $("recMsg").textContent = "커버 각 나오는 컷 찾는 중";
     var n = Math.max(12, Math.min(30, Math.round(dur * 1.2))), times = [], out = [], det = null;
     for (var i = 0; i < n; i++) times.push(Math.min(dur - 0.05, 0.3 + i * Math.max(0, dur - 0.6) / (n - 1)));
     function step(idx) {
       if (my !== recToken) return;
       if (ended) return;
       if (idx >= times.length) { finish(); return; }
-      $("loadTime").textContent = (idx + 1) + " / " + times.length + " 장면 확인" + (det ? "" : " (사람 인식 없이)");
+      $("loadTime").textContent = (idx + 1) + " / " + times.length + "컷 보는 중" + (det ? "" : " (사람 인식 없이)");
       $("loadBarIn").style.width = Math.round(idx / times.length * 100) + "%";
-      $("recMsg").textContent = "가이드에 맞는 장면 찾는 중 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
+      $("recMsg").textContent = "커버 각 나오는 컷 찾는 중 " + (idx + 1) + "/" + times.length + (det ? "" : " (사람 인식 없이)");
       seek2(times[idx]).then(function () {
         if (my !== recToken || !v2.videoWidth) return;
         var st = grabStats(), box = null;
@@ -594,7 +596,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       });
       picks.sort(function (a, b) { return a.t - b.t; });
       $("recSpin").hidden = true;
-      $("recMsg").textContent = picks.length ? "추천 장면 " + picks.length + "개 · 누르면 그 장면으로 가고 머리 끝 줄에 맞춰집니다" : "추천할 장면을 찾지 못했습니다. 슬라이더로 골라 주세요.";
+      $("recMsg").textContent = picks.length ? "커버 각 나온 컷 " + picks.length + "개 · 누르면 그 장면으로 가고 머리 끝 줄에 맞춰져요" : "딱 맞는 컷을 못 찾았어요. 슬라이더로 직접 골라 주세요.";
       var list = $("recList"); list.innerHTML = "";
       picks.forEach(function (o) {
         var b = document.createElement("button"); b.type = "button"; b.className = "rec";
