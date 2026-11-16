@@ -53,6 +53,11 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .loading .bar { width: min(220px, 70%); height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
 .loading .bar i { display: block; height: 100%; width: 0; background: var(--mark); transition: width .2s; }
 .loading .skip { margin-top: 4px; background: transparent; color: #fff; border-color: rgba(255,255,255,.45); font-size: 13px; padding: 6px 12px; }
+.stage.hit { box-shadow: 0 0 0 3px rgba(60,220,120,.9); transition: box-shadow .15s; }
+#shadeVal.hit, #shadeVal.rec { color: var(--ok); font-weight: 700; }
+#shadeVal.hit { animation: pop .25s ease-out; }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { #shadeVal.hit { animation: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 /* 추천 장면 */
 .recs { display: flex; flex-direction: column; gap: 8px; }
@@ -177,7 +182,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
 
     <section class="step">
       <h2><span class="n">4</span>사진 위치</h2>
-      <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:70px">45% 기본</span></div>
+      <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:96px">45%</span></div>
       <p class="hint" style="margin-top:-4px">글자가 안 읽히면 그림자를 올려 주세요</p>
       <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
       <p class="hint">끌어서 옮기고 머리 끝을 초록 줄에 맞춰요</p>
@@ -254,7 +259,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   function draw() {
     ctx.clearRect(0, 0, T.W, T.H);
     ctx.fillStyle = "#000"; ctx.fillRect(0, 0, T.W, T.H);
-    if (S.src) { var c = cover(); ctx.drawImage(S.src, c.x, c.y, c.dw, c.dh); }
+    if (S.src) { var c = cover(); ctx.drawImage(S.src, c.x, c.y, c.dw, c.dh); measureRec(c); }
     var g = ctx.createLinearGradient(0, 0, 0, T.H);
     var sk = +$("shade").value / 45;
     T.shade.forEach(function (s) { g.addColorStop(s[0], "rgba(0,0,0," + Math.min(0.95, s[1] * sk).toFixed(3) + ")"); });
@@ -283,6 +288,63 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     }
     drawGuide(); drawGrid(); check();
   }
+  // ── 「걸림」 반응: 그림자 추천값·머리 끝 줄에 닿으면 초록으로 바뀌고(휴대폰은 짧은 진동) 가까우면 끌려 붙는다
+  var recKey = "", headHit = false, shadeHit = false;
+  function buzz() { try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) {} }
+  function measureRec(c) {
+    var key = [S.name, S.kind === "video" ? video.currentTime.toFixed(2) : "", c.x | 0, c.y | 0, c.dw | 0].join("|");
+    if (key === recKey) return; recKey = key;
+    var d = ctx.getImageData(150, 1230, 780, 230).data, sum = 0, n = 0;
+    for (var i = 0; i < d.length; i += 4 * 37) { sum += d[i] * .299 + d[i + 1] * .587 + d[i + 2] * .114; n++; }
+    var L = sum / n;   // 글자 자리 밝기 0~255 → 밝을수록 그림자를 진하게(30~80%, 5 단위)
+    S.recShade = Math.round(Math.max(30, Math.min(80, 30 + (L - 70) / 130 * 50)) / 5) * 5;
+    showShade(false);
+  }
+  function showShade(fromUser) {
+    var v = +$("shade").value, r = S.recShade, el = $("shadeVal");
+    var on = r != null && v === r;
+    el.textContent = on ? v + "% 딱 추천" : v + "%" + (r != null ? " · 추천 " + r + "%" : "");
+    el.classList.toggle("rec", on);
+    if (on && !shadeHit && fromUser) { el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit"); buzz(); }
+    shadeHit = on;
+  }
+  function headY() { if (!S.head || !S.src) return null; var c = cover(); return c.y + S.head.top * c.k; }
+  function snapHead() {   // 머리 끝이 줄에서 14px 안이면 줄에 딱 붙인다
+    var y = headY(); if (y == null || Math.abs(y - T.head) > 14) return;
+    var c = cover(); if (c.dh <= T.H + 0.5) return;
+    S.py = clamp((T.head - S.head.top * c.k) / (T.H - c.dh));
+  }
+  function headFeedback() {
+    var y = headY(), on = y != null && y >= T.headLo && y <= T.headHi;
+    stage.classList.toggle("hit", on);
+    if (on && !headHit) buzz();
+    headHit = on; return y;
+  }
+  var detBusy = false, detAgain = false, wk3 = document.createElement("canvas"); wk3.width = 360; wk3.height = 640;   // 추천 장면 찾기와 캔버스를 나눠 씀
+  function detectCurrent() {   // 지금 장면에서 주인공(가장 크고 가운데에 가까운 사람)의 머리 끝을 원본 좌표로 기억
+    if (!S.src) return;
+    if (detBusy) { detAgain = true; return; }
+    detBusy = true;
+    detector().then(function (det) {
+      var src = S.src, sw = S.sw, sh = S.sh;
+      if (!det || !src) return;
+      var k = Math.max(360 / sw, 640 / sh), ox = (360 - sw * k) / 2, oy = (640 - sh * k) / 2;
+      var x3 = wk3.getContext("2d"); x3.fillStyle = "#000"; x3.fillRect(0, 0, 360, 640); x3.drawImage(src, ox, oy, sw * k, sh * k);
+      var best = null;
+      try {
+        (det.detect(wk3).detections || []).forEach(function (dd) {
+          var bb = dd.boundingBox, cx = bb.originX + bb.width / 2;
+          var sc = bb.width * bb.height * (1 - Math.min(0.6, Math.abs(cx - 180) / 360));
+          if (!best || sc > best.sc) best = { sc: sc, bb: bb };
+        });
+      } catch (e) {}
+      if (src !== S.src) return;
+      S.head = best ? { top: (best.bb.originY - oy) / k, cx: (best.bb.originX + best.bb.width / 2 - ox) / k } : null;
+      draw();
+    }).then(function () { detBusy = false; if (detAgain) { detAgain = false; detectCurrent(); } },
+            function () { detBusy = false; });
+  }
+
   function drawGuide() {
     gctx.clearRect(0, 0, T.W, T.H);
     if (!S.src) return;
@@ -292,10 +354,20 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       gctx.fillStyle = "rgba(0,0,0,.35)"; gctx.fillRect(0, 0, T.W, T.gridTop); gctx.fillRect(0, T.gridBot, T.W, T.H - T.gridBot);
       gctx.restore();
     }
+    var hy = headFeedback();
     if ($("gHead").checked) {
-      gctx.save(); gctx.fillStyle = "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
-      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = 3; gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
-      gctx.font = "bold 30px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)"; gctx.fillText("머리 끝", 20, T.headLo - 10);
+      gctx.save();
+      gctx.fillStyle = headHit ? "rgba(60,220,120,.38)" : "rgba(60,220,120,.18)"; gctx.fillRect(0, T.headLo, T.W, T.headHi - T.headLo);
+      gctx.strokeStyle = "rgba(60,220,120,.95)"; gctx.lineWidth = headHit ? 9 : 3;
+      gctx.beginPath(); gctx.moveTo(0, T.head); gctx.lineTo(T.W, T.head); gctx.stroke();
+      gctx.font = "bold " + (headHit ? 40 : 30) + "px sans-serif"; gctx.fillStyle = "rgba(60,220,120,1)";
+      gctx.fillText(headHit ? "머리 끝 딱 맞아요" : "머리 끝", 20, T.headLo - 12);
+      if (hy != null && !headHit) {
+        gctx.strokeStyle = "rgba(255,170,40,.95)"; gctx.lineWidth = 4; gctx.setLineDash([14, 10]);
+        gctx.beginPath(); gctx.moveTo(0, hy); gctx.lineTo(T.W, hy); gctx.stroke(); gctx.setLineDash([]);
+        gctx.fillStyle = "rgba(255,170,40,1)"; gctx.font = "bold 28px sans-serif";
+        gctx.fillText("지금 머리 끝 " + (hy > T.head ? "▼ " : "▲ ") + Math.round(Math.abs(hy - T.head)) + "px", 20, hy + (hy > T.head ? 36 : -12));
+      }
       gctx.restore();
     }
     if ($("gMid").checked) {
@@ -365,6 +437,8 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     var isV = kind === "video";
     ["seek", "back", "fwd", "b1", "b2", "f1", "f2"].forEach(function (id) { $(id).disabled = !isV; });
     if (!isV) $("time").textContent = "사진";
+    S.head = null; S.recShade = null; recKey = "";
+    if (!isV) setTimeout(detectCurrent, 0);
     draw();
   }
   // 확장자 없는 파일은 형식이 비어 있어 아이폰 사파리가 영상으로 못 알아본다 → 파일 머리(ftyp)로 형식을 붙인다
@@ -409,6 +483,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       paintT = setTimeout(paintFrame, 250); return;
     }
     $("seeking").hidden = true;
+    if (!isBlank()) detectCurrent();
     if (!$("loading").hidden && !S.analyzing) hideLoading();
     if (isBlank()) $("srcname").textContent = "장면이 검게 나오면: 이 기기에서 영상 장면을 못 그린 거예요. 원하는 장면을 캡처해 그 사진을 열어 주세요.";
     else if (firstFrame) { firstFrame = false; }
@@ -650,6 +725,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     var dx = (e.clientX - drag.x) * sc, dy = (e.clientY - drag.y) * sc;
     S.px = c.dw > T.W ? clamp(drag.px - dx / (c.dw - T.W)) : 0.5;
     S.py = c.dh > T.H ? clamp(drag.py - dy / (c.dh - T.H)) : 0.5;
+    snapHead();
     draw();
   });
   function end(e) { delete pts[e.pointerId]; if (Object.keys(pts).length < 2) pinch = null; drag = null; stage.classList.remove("drag"); }
@@ -659,10 +735,14 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     var z = Math.max(100, Math.min(200, +$("zoom").value - Math.sign(e.deltaY) * 4)); $("zoom").value = z; S.zoom = z / 100; draw();
   }, { passive: false });
   function clamp(v) { return Math.max(0, Math.min(1, v)); }
-  $("zoom").oninput = function () { S.zoom = this.value / 100; draw(); };
+  $("zoom").oninput = function () { S.zoom = this.value / 100; snapHead(); draw(); };
   $("center").onclick = function () { S.px = 0.5; S.py = 0.5; draw(); };
   ["gHead", "gMid", "gGrid", "gUi"].forEach(function (id) { $(id).onchange = draw; });
-  $("shade").oninput = function () { var v = +this.value; $("shadeVal").textContent = v + "%" + (v === 45 ? " 기본" : ""); draw(); };
+  $("shade").oninput = function () {
+    var v = +this.value, r = S.recShade;
+    if (r != null && v !== r && Math.abs(v - r) <= 3) { this.value = r; }
+    showShade(true); draw();
+  };
   ["l1", "l2"].forEach(function (id) { $(id).oninput = draw; });
 
   // ── 예시
