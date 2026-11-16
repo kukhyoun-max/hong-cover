@@ -437,6 +437,13 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     }, 1000);
   }
   function hideLoading() { clearInterval(loadT); $("loading").hidden = true; $("loadBar").hidden = true; $("loadSkip").hidden = true; if (!S.src) $("empty").hidden = false; }
+  function goStep(el) {
+    if (!el) return;
+    var mob = window.matchMedia("(max-width: 860px)").matches;
+    var off = mob ? document.querySelector(".stage-bar").getBoundingClientRect().height + 8 : 20;
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: reduce ? "auto" : "smooth" });
+  }
   function setSource(el, w, h, name, kind) {
     if (kind !== "video") hideLoading();
     if (kind !== "video") { recToken++; S.analyzing = false; $("recs").hidden = true; }   // 영상은 첫 장면이 실제로 그려진 뒤에 내린다(paintFrame)
@@ -448,6 +455,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     if (!isV) $("time").textContent = "사진";
     S.head = null; S.recShade = null; recKey = "";
     if (!isV) setTimeout(detectCurrent, 0);
+    if (!isV && S.name.indexOf("예시 사진") !== 0) setTimeout(function () { goStep($("l1").closest(".step")); }, 50);
     draw();
   }
   // 확장자 없는 파일은 형식이 비어 있어 아이폰 사파리가 영상으로 못 알아본다 → 파일 머리(ftyp)로 형식을 붙인다
@@ -697,6 +705,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       $("recSpin").hidden = true;
       $("recMsg").textContent = picks.length ? "커버 각 나온 컷 " + picks.length + "개 · 누르면 바로 맞춰져요" : "딱 맞는 컷이 없어요 · 직접 골라 주세요";
       var list = $("recList"); list.innerHTML = "";
+      setTimeout(function () { goStep($("sceneStep")); }, 50);
       picks.forEach(function (o) {
         var b = document.createElement("button"); b.type = "button"; b.className = "rec";
         var img = document.createElement("img"); img.alt = fmt(o.t) + " 장면"; img.src = o.img;
