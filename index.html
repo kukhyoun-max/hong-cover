@@ -42,8 +42,8 @@ body { background: var(--paper); color: var(--ink); font-family: var(--ui); font
 .stage .empty { position: absolute; inset: 0; display: grid; place-items: center; color: #c9ced4; text-align: center; padding: 24px; font-size: 15px; }
 .stage.drop { outline: 3px solid var(--mark); outline-offset: -3px; }
 /* 불러오는 중: 미리보기 전체를 덮는 막 + 도는 고리, 장면 찾는 중: 위쪽 작은 칩 */
-.loading { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background: rgba(10,12,14,.88); color: #fff; text-align: center; padding: 20px; font-size: 15px; }
+.loading { position: fixed; inset: 0; z-index: 50; padding-top: max(20px, env(safe-area-inset-top, 0px)); padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(10,12,14,.93); color: #fff; text-align: center; padding-left: 20px; padding-right: 20px; font-size: 15px; }
 .loading .logo-spin { width: 76px; height: 76px; animation: spin 1.6s linear infinite; filter: drop-shadow(0 2px 8px rgba(0,0,0,.4)); }
 .loading .sub { color: #c9ced4; font-size: 12.5px; max-width: 24ch; word-break: break-all; }
 .seeking { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 3; background: rgba(10,12,14,.78); color: #fff;
@@ -210,6 +210,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   var gd = $("guide"), gctx = gd.getContext("2d");
   var gridC = $("grid"), gridX = gridC.getContext("2d");
   var stage = $("stage");
+  document.body.appendChild($("loading"));   // 로딩 덮개는 미리보기만이 아니라 화면 전체를 덮는다
   var S = { src: null, sw: 0, sh: 0, kind: "", px: 0.5, py: 0.5, zoom: 1, name: "", fontReady: false };
   var video = document.createElement("video");
   // 아이폰(WebKit)은 화면에 붙어 있고 한 번 재생을 건드린 영상만 장면 데이터를 받는다
