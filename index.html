@@ -171,7 +171,15 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     </section>
 
     <section class="step">
-      <h2><span class="n">3</span>사진 위치</h2>
+      <h2><span class="n">3</span>커버 문구 두 줄</h2>
+      <div class="line-in"><label for="l1">윗줄</label><input id="l1" maxlength="12" autocomplete="off"><span class="count" id="c1">0/7</span></div>
+      <div class="line-in"><label for="l2">아랫줄</label><input id="l2" maxlength="12" autocomplete="off"><span class="count" id="c2">0/7</span></div>
+      <p class="hint">한 줄 3~7자, 아랫줄이 펀치라인이에요</p>
+      <div class="chips" id="examples"></div>
+    </section>
+
+    <section class="step">
+      <h2><span class="n">4</span>사진 위치</h2>
       <div class="row"><span class="hint" style="min-width:34px">그림자</span><input type="range" id="shade" min="0" max="90" value="45" aria-label="아래 그림자 진하기"><span class="time" id="shadeVal" style="min-width:96px">45%</span></div>
       <p class="hint" style="margin-top:-4px">글자가 안 읽히면 그림자를 올려 주세요</p>
       <div class="row"><span class="hint" style="min-width:34px">확대</span><input type="range" id="zoom" min="100" max="200" value="100" aria-label="확대"><button id="center">가운데로</button></div>
@@ -183,14 +191,6 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <label><input type="checkbox" id="gUi"> 오른쪽 버튼 가림(회색) 보기</label>
 
       </div>
-    </section>
-
-    <section class="step">
-      <h2><span class="n">4</span>커버 문구 두 줄</h2>
-      <div class="line-in"><label for="l1">윗줄</label><input id="l1" maxlength="12" autocomplete="off"><span class="count" id="c1">0/7</span></div>
-      <div class="line-in"><label for="l2">아랫줄</label><input id="l2" maxlength="12" autocomplete="off"><span class="count" id="c2">0/7</span></div>
-      <p class="hint">한 줄 3~7자, 아랫줄이 펀치라인이에요</p>
-      <div class="chips" id="examples"></div>
     </section>
 
     <section class="step">
@@ -455,7 +455,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     if (!isV) $("time").textContent = "사진";
     S.head = null; S.recShade = null; recKey = "";
     if (!isV) setTimeout(detectCurrent, 0);
-    if (!isV && S.name.indexOf("예시 사진") !== 0) setTimeout(function () { goStep($("zoom").closest(".step")); }, 50);
+    if (!isV && S.name.indexOf("예시 사진") !== 0) setTimeout(function () { goStep($("l1").closest(".step")); }, 50);
     draw();
   }
   // 확장자 없는 파일은 형식이 비어 있어 아이폰 사파리가 영상으로 못 알아본다 → 파일 머리(ftyp)로 형식을 붙인다
@@ -717,7 +717,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
           if (o.fit) { S.zoom = o.fit.z; S.px = o.fit.px; S.py = o.fit.py; $("zoom").value = Math.round(o.fit.z * 100); }
           else { S.zoom = 1; S.px = 0.5; S.py = 0.5; $("zoom").value = 100; }
           seekTo(o.t);
-          setTimeout(function () { goStep($("zoom").closest(".step")); }, 350);   // 추천 컷을 고르면 3번(사진 위치)으로
+          setTimeout(function () { goStep($("l1").closest(".step")); }, 350);   // 추천 컷을 고르면(확대·위치가 맞춰진 뒤) 3번(문구)으로
         };
         list.appendChild(b);
       });
