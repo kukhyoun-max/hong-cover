@@ -58,14 +58,14 @@ h1 { font-family: var(--display); font-weight: 400; font-size: 30px; line-height
 .step h2 { font-size: 14px; margin: 0; display: flex; align-items: center; gap: 8px; }
 .step h2 .n { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; background: var(--ink); color: var(--panel); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-button, .file { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+button, .file { touch-action: manipulation; font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 7px; padding: 7px 12px; cursor: pointer; }
 button:hover, .file:hover { border-color: var(--ink); }
 button:focus-visible, .file:focus-within, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .file { position: relative; display: inline-block; }
 button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); font-weight: 700; padding: 11px 16px; width: 100%; font-size: 15px; }
 button.primary:disabled { opacity: .45; cursor: not-allowed; }
-input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--ink); }
+input[type="range"] { touch-action: manipulation; flex: 1; min-width: 120px; accent-color: var(--ink); }
 .time { font-variant-numeric: tabular-nums; color: var(--soft); min-width: 92px; text-align: right; }
 .line-in { display: grid; grid-template-columns: 48px 1fr 46px; gap: 8px; align-items: center; }
 .line-in label { color: var(--soft); }
@@ -178,7 +178,12 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   var stage = $("stage");
   var S = { src: null, sw: 0, sh: 0, kind: "", px: 0.5, py: 0.5, zoom: 1, name: "", fontReady: false };
   var video = document.createElement("video");
+  // 아이폰(WebKit)은 화면에 붙어 있고 한 번 재생을 건드린 영상만 장면 데이터를 받는다
   video.muted = true; video.playsInline = true; video.preload = "auto";
+  video.setAttribute("muted", ""); video.setAttribute("playsinline", ""); video.setAttribute("webkit-playsinline", "");
+  video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;";
+  document.body.appendChild(video);
+  var want = 0;   // 가려는 시각(아이폰은 currentTime이 늦게 바뀌어 연속 누르면 제자리)
   var logo = new Image(); logo.src = "logos/hong.png"; logo.onload = draw;
 
   // 글꼴: 다 받은 뒤에 위치를 잰다(재지 않으면 다른 글꼴로 그려진다)
@@ -292,16 +297,29 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     if (!isV) $("time").textContent = "사진";
     draw();
   }
+  // 확장자 없는 파일은 형식이 비어 있어 아이폰 사파리가 영상으로 못 알아본다 → 파일 머리(ftyp)로 형식을 붙인다
   function openVideo(file) {
-    var url = URL.createObjectURL(file);
-    video.onloadeddata = function () {
-      if (!video.videoWidth) { videoFail(file); return; }
+    if (file.type) { openVideoTyped(file, file); return; }
+    file.slice(0, 12).arrayBuffer().then(function (b) {
+      var s = String.fromCharCode.apply(null, new Uint8Array(b));
+      var type = s.slice(4, 8) === "ftyp" ? (s.slice(8, 12) === "qt  " ? "video/quicktime" : "video/mp4") : "";
+      openVideoTyped(file, type ? new Blob([file], { type: type }) : file);
+    }).catch(function () { openVideoTyped(file, file); });
+  }
+  function openVideoTyped(file, blob) {
+    var url = URL.createObjectURL(blob);
+    var ready = false;
+    function onReady() {
+      if (ready || !video.videoWidth || !isFinite(video.duration)) return;
+      ready = true;
       setSource(video, video.videoWidth, video.videoHeight, file.name, "video");
       seekTo(Math.min(1, video.duration / 2));
-    };
+    }
+    video.onloadedmetadata = onReady; video.onloadeddata = onReady; video.oncanplay = onReady;
     video.onerror = function () { videoFail(file); };
-    clearTimeout(video._t); video._t = setTimeout(function () { if (S.src !== video || !video.videoWidth) videoFail(file); }, 8000);
-    video.src = url;
+    clearTimeout(video._t); video._t = setTimeout(function () { if (!ready) videoFail(file); }, 8000);
+    video.src = url; video.load();
+    var pr = video.play(); if (pr && pr.then) pr.then(function () { video.pause(); onReady(); }).catch(function () {});
   }
   // 영상이 안 열리면 사진으로 한 번 더 시도한다(갠콘 파일은 확장자가 없어 형식을 이름으로 알 수 없음)
   function videoFail(file) {
@@ -330,20 +348,24 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   function seekTo(t) {
     if (S.kind !== "video") return;
     t = Math.max(0, Math.min(video.duration - 0.01, t));
-    video.currentTime = t;
+    want = t; video.pause(); video.currentTime = t;
+    showTime(t);
   }
-  video.addEventListener("seeked", function () {
-    $("time").textContent = fmt(video.currentTime) + " / " + fmt(video.duration);
-    $("seek").value = Math.round(video.currentTime / video.duration * 1000);
-    draw();
+  function showTime(t) {
+    $("time").textContent = fmt(t) + " / " + fmt(video.duration);
+    $("seek").value = Math.round(t / video.duration * 1000);
+  }
+  // 장면이 실제로 바뀐 뒤 다시 그린다(아이폰은 seeked가 늦거나 빠질 때가 있어 여러 신호로)
+  ["seeked", "loadeddata", "canplay", "timeupdate"].forEach(function (ev) {
+    video.addEventListener(ev, function () { if (S.src === video) draw(); });
   });
   $("seek").oninput = function () { seekTo(this.value / 1000 * video.duration); };
-  $("back").onclick = function () { seekTo(video.currentTime - 1 / FPS); };
-  $("fwd").onclick = function () { seekTo(video.currentTime + 1 / FPS); };
+  $("back").onclick = function () { seekTo(want - 1 / FPS); };
+  $("fwd").onclick = function () { seekTo(want + 1 / FPS); };
   document.addEventListener("keydown", function (e) {
     if (S.kind !== "video" || /INPUT/.test(document.activeElement.tagName) && document.activeElement.type !== "range") return;
-    if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(video.currentTime - 1 / FPS); }
-    if (e.key === "ArrowRight") { e.preventDefault(); seekTo(video.currentTime + 1 / FPS); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); seekTo(want - 1 / FPS); }
+    if (e.key === "ArrowRight") { e.preventDefault(); seekTo(want + 1 / FPS); }
   });
 
   // ── 위치: 끌기·확대
