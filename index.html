@@ -118,6 +118,16 @@ input[type="range"] { touch-action: manipulation; flex: 1; min-width: 120px; acc
 .warns li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .warns li { color: var(--ink); font-weight: 700; }
 .warns li.good { color: var(--ink); font-weight: 700; }
+/* 지난 작업: 이 브라우저에 쌓인 저장 기록(2026-11-17) */
+.hist { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.hist li { display: grid; grid-template-columns: 36px 1fr auto auto; gap: 10px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; }
+.hist li.on { border: 2px solid var(--ink); padding: 5px; }
+.hist img { width: 36px; height: 64px; object-fit: cover; border-radius: 3px; background: #000; display: block; }
+.hist .t { min-width: 0; display: flex; flex-direction: column; }
+.hist .t b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.hist .t span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--soft); font-variant-numeric: tabular-nums; }
+.hist button { padding: 6px 10px; font-size: 13px; white-space: nowrap; }
+.hist button.del { padding: 6px 8px; color: var(--soft); }
 kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -146,7 +156,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
         <h2><span class="n">1</span>영상 또는 사진 열기</h2>
         <label class="file">영상·사진 열기<input type="file" id="vfile"></label>
       </div>
-      <p class="hint" id="srcname">갠콘 폴더의 자막 X 영상을 열어 주세요</p>
+      <p class="hint" id="srcname">자막 X 영상을 열거나, 고칠 땐 저장했던 커버.png를 열어 주세요</p>
     </section>
 
     <section class="step" id="sceneStep">
@@ -201,6 +211,12 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
       </div>
       <button class="primary" id="save" disabled>커버 PNG 저장</button>
       <p class="hint">갠콘 폴더에 「커버.png」로 넣어 주세요</p>
+    </section>
+
+    <section class="step" id="histStep">
+      <h2>지난 작업</h2>
+      <ul class="hist" id="hist"></ul>
+      <p class="hint" id="histHint">이 PC에서 저장한 커버가 여기 쌓여요</p>
     </section>
   </div>
 </div>
@@ -453,7 +469,7 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
     var isV = kind === "video";
     ["seek", "back", "fwd", "b1", "b2", "f1", "f2"].forEach(function (id) { $(id).disabled = !isV; });
     if (!isV) $("time").textContent = "사진";
-    S.head = null; S.recShade = null; recKey = "";
+    S.head = null; S.recShade = null; recKey = ""; S.histId = null; S.frameBlob = null; S.at = null;
     if (!isV) setTimeout(detectCurrent, 0);
     if (!isV && S.name.indexOf("예시 사진") !== 0) setTimeout(function () { goStep($("l1").closest(".step")); }, 50);
     draw();
@@ -526,6 +542,14 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   function openFile(file) {
     if (!file) return;
     showLoading(file, /^image\//.test(file.type) ? "사진" : "영상");
+    if (file.type === "image/png" || /\.png$/i.test(file.name)) {
+      file.arrayBuffer().then(function (b) {
+        var w = null; try { w = readWork(b); } catch (e) {}
+        if (w) { hideLoading(); w.id = null; reopen(w, file.name); }
+        else openImage(file, function () { openVideo(file); });
+      }).catch(function () { openImage(file, function () { openVideo(file); }); });
+      return;
+    }
     if (/^image\//.test(file.type)) openImage(file, function () { openVideo(file); }); else openVideo(file);
   }
   $("vfile").onchange = function (e) { openFile(e.target.files[0]); e.target.value = ""; };
@@ -780,13 +804,137 @@ kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-bott
   // ── 저장
   $("save").onclick = function () {
     draw();
-    out.toBlob(function (blob) {
+    out.toBlob(function (png) {
+      withWork(png).then(function (blob) {
       var a = document.createElement("a"), L = lines();
       a.href = URL.createObjectURL(blob);
       a.download = "커버_" + (L[0] + " " + L[1]).replace(/[\\/:*?"<>|]/g, "").trim() + ".png";
       document.body.appendChild(a); a.click(); a.remove();
+      record();
+      });
     }, "image/png");
   };
+
+  // ── 커버 PNG = 작업 파일: IEND 앞에 개인 조각 「hoNg」(표시엔 영향 없음, 인스타 올릴 때 버려짐)
+  //    내용 = [JSON 길이 4바이트][JSON(UTF-8)][장면 JPG]. 1번에서 이 PNG를 열면 그 장면·문구·위치로 돌아간다
+  var CRC = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { var c = 0xffffffff; for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function u32(n) { return new Uint8Array([n >>> 24 & 255, n >>> 16 & 255, n >>> 8 & 255, n & 255]); }
+  function workInfo() {
+    var L = lines();
+    return { v: 1, l1: L[0], l2: L[1], name: S.name, at: S.kind === "video" ? video.currentTime : S.at,
+      px: S.px, py: S.py, zoom: S.zoom, shade: +$("shade").value, time: Date.now() };
+  }
+  function withWork(png) {
+    if (!png || !S.src) return Promise.resolve(png);
+    return Promise.all([png.arrayBuffer(), grabFrame().then(function (f) { return f ? f.arrayBuffer() : null; })]).then(function (r) {
+      var src = new Uint8Array(r[0]); if (!r[1]) return png;
+      var js = new TextEncoder().encode(JSON.stringify(workInfo())), jp = new Uint8Array(r[1]);
+      var body = new Uint8Array(4 + 4 + js.length + jp.length);   // 조각 이름 + 내용(CRC 계산용)
+      body.set([104, 111, 78, 103], 0); body.set(u32(js.length), 4); body.set(js, 8); body.set(jp, 8 + js.length);
+      var end = src.length - 12;   // IEND 조각 앞
+      return new Blob([src.subarray(0, end), u32(body.length - 4), body, u32(crc32(body)), src.subarray(end)], { type: "image/png" });
+    }).catch(function () { return png; });
+  }
+  function readWork(buf) {   // 커버 PNG에서 작업 정보를 꺼낸다(없으면 null)
+    var u = new Uint8Array(buf), dv = new DataView(buf);
+    if (u.length < 20 || u[1] !== 80 || u[2] !== 78 || u[3] !== 71) return null;
+    for (var i = 8; i + 12 <= u.length;) {
+      var len = dv.getUint32(i), type = String.fromCharCode(u[i + 4], u[i + 5], u[i + 6], u[i + 7]);
+      if (type === "hoNg") {
+        var jl = dv.getUint32(i + 8), info = JSON.parse(new TextDecoder().decode(u.subarray(i + 12, i + 12 + jl)));
+        info.frame = new Blob([u.subarray(i + 12 + jl, i + 8 + len)], { type: "image/jpeg" });
+        return info;
+      }
+      if (type === "IEND") break;
+      i += 12 + len;
+    }
+    return null;
+  }
+
+  // ── 지난 작업: 저장할 때마다 고른 장면(JPG)·문구·위치를 이 브라우저(IndexedDB)에 남긴다. 최근 30개
+  //    다시 열면 영상 없이 그 장면으로 돌아가 문구·위치만 고쳐 다시 저장할 수 있다. 다시 저장하면 같은 줄을 바꾼다
+  var HMAX = 30, dbP = null;
+  function db() {
+    if (!dbP) dbP = new Promise(function (res, rej) {
+      var r = indexedDB.open("hong-cover", 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore("covers", { keyPath: "id" }); };
+      r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
+    });
+    return dbP;
+  }
+  function store(mode, fn) {
+    return db().then(function (d) {
+      return new Promise(function (res, rej) {
+        var t = d.transaction("covers", mode), q = fn(t.objectStore("covers"));
+        t.oncomplete = function () { res(q && q.result); }; t.onerror = t.onabort = function () { rej(t.error); };
+      });
+    });
+  }
+  function grabFrame() {   // 지금 장면을 원본 크기(긴 변 최대 2560)로
+    if (S.frameBlob) return Promise.resolve(S.frameBlob);
+    var k = Math.min(1, 2560 / Math.max(S.sw, S.sh)), c = document.createElement("canvas");
+    c.width = Math.round(S.sw * k); c.height = Math.round(S.sh * k);
+    c.getContext("2d").drawImage(S.src, 0, 0, c.width, c.height);
+    return new Promise(function (res) { c.toBlob(res, "image/jpeg", 0.92); });
+  }
+  function record() {
+    if (!S.src || !window.indexedDB) return;
+    var L = lines(), t = document.createElement("canvas"); t.width = 108; t.height = 192;
+    t.getContext("2d").drawImage(out, 0, 0, 108, 192);
+    var item = { id: S.histId || String(Date.now()), time: Date.now(), l1: L[0], l2: L[1], name: S.name,
+      at: S.kind === "video" ? video.currentTime : S.at, px: S.px, py: S.py, zoom: S.zoom, shade: +$("shade").value,
+      thumb: t.toDataURL("image/jpeg", 0.8) };
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+    grabFrame().then(function (fb) {
+      if (!fb) throw new Error("frame");
+      item.frame = fb; S.frameBlob = fb; S.histId = item.id;
+      return store("readwrite", function (s) { return s.put(item); });
+    }).then(listHist).then(function (all) {
+      if (all.length > HMAX) return store("readwrite", function (s) { all.slice(HMAX).forEach(function (x) { s.delete(x.id); }); }).then(listHist);
+    }).catch(function () { $("histHint").textContent = "이 브라우저에선 지난 작업을 남길 수 없어요"; });
+  }
+  function two(n) { return (n < 10 ? "0" : "") + n; }
+  function when(ms) { var d = new Date(ms); return (d.getMonth() + 1) + "/" + d.getDate() + " " + two(d.getHours()) + ":" + two(d.getMinutes()); }
+  function listHist() {
+    return store("readonly", function (s) { return s.getAll(); }).then(function (all) {
+      all = (all || []).sort(function (a, b) { return b.time - a.time; });
+      var ul = $("hist"); ul.innerHTML = "";
+      all.slice(0, HMAX).forEach(function (it) {
+        var li = document.createElement("li"); if (it.id === S.histId) li.className = "on";
+        var im = document.createElement("img"); im.src = it.thumb; im.alt = "";
+        var tx = document.createElement("div"); tx.className = "t";
+        var b = document.createElement("b"); b.textContent = (it.l1 || "(빈 줄)") + " / " + (it.l2 || "(빈 줄)");
+        var sp = document.createElement("span"); sp.textContent = when(it.time) + " · " + it.name + (it.at != null ? " · " + fmt(it.at) : "");
+        tx.appendChild(b); tx.appendChild(sp);
+        var op = document.createElement("button"); op.type = "button"; op.textContent = "다시 열기"; op.onclick = function () { reopen(it); };
+        var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "✕"; del.setAttribute("aria-label", "이 기록 지우기");
+        del.onclick = function () {
+          if (!confirm("「" + b.textContent + "」 기록을 지울까요? 저장한 PNG 파일은 그대로예요.")) return;
+          if (S.histId === it.id) S.histId = null;
+          store("readwrite", function (s) { return s.delete(it.id); }).then(listHist);
+        };
+        li.appendChild(im); li.appendChild(tx); li.appendChild(op); li.appendChild(del); ul.appendChild(li);
+      });
+      $("histHint").textContent = all.length ? "다른 PC에선 갠콘 폴더의 커버.png를 1번에서 열면 이어서 고쳐요" : "이 PC에서 저장한 커버가 여기 쌓여요";
+      return all;
+    });
+  }
+  function reopen(it, fromPng) {
+    var img = new Image();
+    img.onload = function () {
+      setSource(img, img.naturalWidth, img.naturalHeight, it.name, "image");
+      S.histId = it.id || null; S.frameBlob = it.frame; S.at = it.at;
+      S.zoom = it.zoom; S.px = it.px; S.py = it.py; $("zoom").value = Math.round(it.zoom * 100);
+      $("shade").value = it.shade; $("l1").value = it.l1; $("l2").value = it.l2;
+      $("time").textContent = "지난 작업";
+      $("srcname").textContent = fromPng ? fromPng + " · 저장했던 그대로 열었어요 · 고쳐서 다시 저장하면 돼요"
+        : it.name + (it.at != null ? " · " + fmt(it.at) + " 장면" : "") + " (지난 작업)";
+      draw(); listHist().catch(function () {});
+    };
+    img.src = URL.createObjectURL(it.frame);
+  }
+  try { listHist().catch(function () { $("histHint").textContent = "이 브라우저에선 지난 작업을 남길 수 없어요"; }); } catch (e) {}
 
   // 처음 화면: 예시 사진(실제 작업 땐 1번에서 바꿈)
   var demo = new Image();
